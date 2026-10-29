@@ -183,9 +183,56 @@ visitors arriving from another site look logged out on that first page
 (Payload's CSRF check). Known Next limitation: `notFound()` pages render their
 content client-side (two root layouts).
 
+**Second review pass (done 2026-10-29),** run with the Claude Code project setup
+(`access-auditor`, a correctness reviewer, the `verify` gate). Fixed:
+- The swipe deck and the saved list showed Instagram works as text cards. They now
+  use `WorkMedia` with the real embed.
+- Concurrent right swipes could drop a save. The client now sends them one at a
+  time, and a failed save puts the card back.
+- The purge cron only started after an `/api` or `/admin` request. Now
+  `src/instrumentation.ts` starts it at boot.
+- Any logged-in visitor could rewrite `payload-jobs-stats` and stop the purge,
+  and could read or delete document locks. Both are now staff-only.
+- The redirect check could be bypassed with `/.//evil.com`.
+- Mail scanners could burn the magic link. The GET now shows a button, and the
+  POST uses up the token.
+- Handles that the profile route rejects can no longer be saved.
+- Hand-pasted post URLs were duplicated by `--update-posts`.
+- Opt-out requests had no rate limit and no staff email.
+- Exhibitions exposed hidden artists' ids, and `aiTagged` was public.
+- DB errors logged inquiry contents.
+- The seed had no production guard.
+- Opening day showed as "Hamarosan" (days are now compared in Budapest time).
+- Covers were crowded out by one artist's uploads.
+- Pages past the end of the directory showed a misleading message.
+- The production auth cookie lacked `Secure`.
+- Duplicated helpers are merged (`src/lib/validation.ts`).
+
+Still open:
+- Directory name sort is byte order on SQLite, so accented names sort last
+  (needs a Postgres ICU collation or a sort key).
+- `postedAt` from the Graph API is discarded, so "newest" follows import order
+  (needs a field).
+- Artists with empty AI proposals are re-sent on each tagging run.
+- The magic link creates a `users` row before the address is proven (GDPR:
+  needs a pending-token store).
+- Closed profile requests are kept indefinitely (a retention period is to be
+  decided).
+- Rate limits key on the full IPv6 address.
+- The swipe deck ships full Work objects.
+- Cross-site first visits look logged out.
+- The server-side `users.saved` append is still read-modify-write (only a
+  multi-tab edge case now).
+- `tag-artists` can't load images through `/api/media` for pending artists once
+  media moves to R2.
+- Instagram's BUC throttle code 80002 may not count as a rate limit (unverified).
+
 Wave 4 must also: generate Postgres migrations (`payload migrate:create` against
 Postgres) and wire `prodMigrations`; test the app once on Postgres; set
-`SERVER_URL`; keep Caddy in front (it sets `X-Forwarded-For`).
+`SERVER_URL`, `RESEND_API_KEY` (startup fails without it) and
+`INQUIRY_FALLBACK_EMAIL`; keep Caddy in front (it sets `X-Forwarded-For`, and
+terminates TLS for the `Secure` cookie); create the admin before exposing the
+port (`/api/users/first-register` is open while `users` is empty).
 
 **Wave 4: one agent, after the user OKs it**
 - *Deploy agent*: Hetzner VPS Docker Compose, Caddy TLS, env/secrets, backups

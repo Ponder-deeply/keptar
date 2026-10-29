@@ -14,9 +14,10 @@ const budapestDay = (date: Date): string => dayFormat.format(date)
 
 export default async function ExhibitionsPage() {
   const payload = await getPayloadClient()
-  const today = budapestDay(new Date())
+  const now = new Date()
+  const today = budapestDay(now)
   // A day early, as a coarse DB filter; the exact cut is by Budapest calendar day below.
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
 
   // Current or upcoming: ends today or later; without an end date, a one-day event from today on.
   const { docs: candidates } = await payload.find({

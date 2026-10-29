@@ -353,12 +353,16 @@ for (const artist of artists) {
   if (proposal.newTags.length) {
     if (createTags && !dryRun) {
       const problems: string[] = []
+      const createdLabels: string[] = []
       for (const { kind, name } of proposal.newTags) {
         const tag = await ensureTag(kind, name, payload)
         if (typeof tag === 'string') problems.push(tag)
-        else created[kind].push(tag.slug)
+        else {
+          created[kind].push(tag.slug)
+          createdLabels.push(`${name} (${KIND_HU[kind]})`)
+        }
       }
-      newTagNote.push(`Új címkék létrehozva: ${proposal.newTags.map((t) => `${t.name} (${KIND_HU[t.kind]})`).join(', ')}`)
+      if (createdLabels.length) newTagNote.push(`Új címkék létrehozva: ${createdLabels.join(', ')}`)
       if (problems.length) newTagNote.push(`Nem létrehozható: ${problems.join('; ')}`)
     } else {
       newTagNote.push(

@@ -55,10 +55,14 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
   `tags`. The public only sees works of published artists.
 - `tags`: `kind` medium | technique | subject, with `slug` for URL filters.
   Artists' `medium` / `technique` and works' `tags` point here.
-- `venues` (lat/lng), `exhibitions` (venue, artists, dates).
+- `venues` (lat/lng), `exhibitions` (venue, artists, dates; visitors only get
+  the published artists, via an afterRead hook).
 - `inquiries` and `profile-requests`: created server-side only, with
   `overrideAccess: true`; staff read them. `jobs/purge-inquiries.ts` deletes
-  inquiries older than 12 months (nightly Payload job).
+  inquiries older than 12 months (nightly Payload job; `src/instrumentation.ts`
+  starts the job crons at server boot). Payload's internal `payload-jobs-stats`
+  global and `payload-locked-documents` are restricted to staff at the end of
+  `payload.config.ts`.
 - `swipes`: logged-in users only; `user` is forced to the requester, and a right
   swipe adds the work to `users.saved` (hook in `Swipes.ts`).
 - `users`: `role` admin | curator | artist | user (only admins change it), `saved`.
@@ -70,16 +74,22 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
 ## Auth and email
 
 - Visitors log in by magic link: the form at `/belepes` posts to
-  `POST /api/users/magic-link`; the emailed link hits
-  `GET /api/users/magic-link/verify`, which sets the Payload cookie
-  (`src/endpoints/magicLink.ts`). Staff can also use the admin password login.
+  `POST /api/users/magic-link`; the emailed link opens
+  `GET /api/users/magic-link/verify`, a page with a "Belépés" button whose
+  `POST` to the same path uses up the token and sets the Payload cookie
+  (`src/endpoints/magicLink.ts`). The GET never uses up the token, because mail
+  scanners open links first. Staff can also use the admin password login.
 - Get the logged-in user server-side with `payload.auth({ headers })`.
+- Shared input helpers (email check, handle normalisation, `escapeHtml`) live in
+  `src/lib/validation.ts`; Instagram post URLs in `src/components/igPermalink.ts`.
 - Email goes through `payload.sendEmail`. Without `RESEND_API_KEY` the whole
-  message (including links) is printed to the dev server log.
+  message (including links) is printed to the dev server log; production refuses
+  to start without it. `INQUIRY_FALLBACK_EMAIL` is the staff inbox: inquiries for
+  artists without an email, and every claim/remove profile request.
 - The site URL comes from the server-only `SERVER_URL`, read at runtime
   (`src/lib/serverURL.ts`); don't use a `NEXT_PUBLIC_*` variable for it.
-- In-memory rate limits (`src/lib/rateLimit.ts`) on the magic link and the
-  inquiry form; the client IP is the last `X-Forwarded-For` entry (Caddy's).
+- In-memory rate limits (`src/lib/rateLimit.ts`) on the magic link, the
+  inquiry form and the profile-request form; the client IP is the last `X-Forwarded-For` entry (Caddy's).
 - Payload accepts the auth cookie only from same-origin requests, so testing
   with curl needs `-H 'Sec-Fetch-Site: same-origin'`.
 
