@@ -1,8 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { isStaff, staffOnly } from '../access/roles'
-
-const IG_POST_RE = /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]+\/?(\?[^\s]*)?$/
+import { IG_POST_URL_RE } from '../components/igPermalink'
 
 export const Works: CollectionConfig = {
   slug: 'works',
@@ -47,7 +46,7 @@ export const Works: CollectionConfig = {
       validate: (value: string | null | undefined, { siblingData }: { siblingData: { source?: string } }) => {
         if (siblingData?.source !== 'instagram') return true
         if (!value) return 'Instagram posztnál kötelező.'
-        return IG_POST_RE.test(value) || 'Pl. https://www.instagram.com/p/ABC123/'
+        return IG_POST_URL_RE.test(value) || 'Pl. https://www.instagram.com/p/ABC123/'
       },
     },
     {

@@ -1,6 +1,11 @@
 'use server'
 
+import { headers } from 'next/headers'
+
 import { getPayloadClient } from '@/components/payloadClient'
+import { sendProfileRequestEmail, staffEmail } from '@/lib/mail'
+import { allowProfileRequest, clientIp } from '@/lib/rateLimit'
+import { isValidEmail } from '@/lib/validation'
 
 import { getPublishedArtist } from '../data'
 
@@ -9,7 +14,6 @@ export type ProfileRequestState =
   | { status: 'ok'; type: 'claim' | 'remove' }
   | { status: 'error'; message: string; fields?: { email?: string; type?: string; message?: string } }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_MESSAGE = 2000
 
 /** Records a claim/remove request for a published artist. A curator handles it in the admin. */
@@ -31,7 +35,7 @@ export async function submitProfileRequest(
   if (type !== 'claim' && type !== 'remove') {
     return { status: 'error', message: 'Válaszd ki, mit szeretnél.', fields }
   }
-  if (!EMAIL_RE.test(email) || email.length > 254) {
+  if (!isValidEmail(email)) {
     return { status: 'error', message: 'Adj meg egy érvényes e-mail-címet.', fields }
   }
   if (message.length > MAX_MESSAGE) {
@@ -41,8 +45,12 @@ export async function submitProfileRequest(
   const artist = await getPublishedArtist(handle)
   if (!artist) return { status: 'error', message: 'Ez a profil nem található.', fields }
 
+  if (!allowProfileRequest(clientIp(await headers()))) {
+    return { status: 'error', message: 'Túl sok kérést küldtél rövid idő alatt. Próbáld újra később.', fields }
+  }
+
+  const payload = await getPayloadClient()
   try {
-    const payload = await getPayloadClient()
     await payload.create({
       collection: 'profile-requests',
       data: { artist: artist.id, type, email, message: message || undefined, status: 'open' },
@@ -50,9 +58,26 @@ export async function submitProfileRequest(
       overrideAccess: true,
     })
   } catch (error) {
-    const payload = await getPayloadClient()
     payload.logger.error({ err: error }, 'profile request failed')
     return { status: 'error', message: 'Nem sikerült elküldeni. Próbáld újra később.', fields }
+  }
+
+  // The request is stored either way; the email only makes sure a curator sees it soon.
+  const to = staffEmail()
+  if (to) {
+    try {
+      await sendProfileRequestEmail(payload, {
+        to,
+        type,
+        artist: { name: artist.name, handle: artist.handle },
+        email,
+        message: message || undefined,
+      })
+    } catch (error) {
+      payload.logger.error({ err: error }, 'profile request email failed')
+    }
+  } else {
+    payload.logger.error('Profile request stored, but INQUIRY_FALLBACK_EMAIL is not set, so no curator was told')
   }
 
   return { status: 'ok', type }

@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 import { serverURL } from './serverURL'
+import { escapeHtml } from './validation'
 
 export type InquiryEmailInput = {
   /** Where the email goes: the artist, or the staff fallback address. */
@@ -12,14 +13,6 @@ export type InquiryEmailInput = {
   message: string
 }
 
-export const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
 /** Public profile URL of an artist (route built by the public pages). */
 export const artistProfileURL = (handle: string): string =>
   `${serverURL()}/muveszek/${encodeURIComponent(handle)}`
@@ -27,6 +20,31 @@ export const artistProfileURL = (handle: string): string =>
 const workLabel = (work: InquiryEmailInput['work']): string | null => {
   if (!work) return null
   return work.title?.trim() || `#${work.id}`
+}
+
+/** Staff inbox for things someone has to act on, from INQUIRY_FALLBACK_EMAIL. */
+export const staffEmail = (): string | undefined => process.env.INQUIRY_FALLBACK_EMAIL?.trim() || undefined
+
+/** Tells staff about a new claim/remove request. Throws if the adapter fails. */
+export async function sendProfileRequestEmail(
+  payload: Payload,
+  input: { to: string; type: 'claim' | 'remove'; artist: { name: string; handle: string }; email: string; message?: string },
+): Promise<void> {
+  const { to, type, artist, email, message } = input
+  const action = type === 'remove' ? 'eltávolítását kéri' : 'magáénak jelöli'
+  const text = [
+    `${email} a(z) ${artist.name} (@${artist.handle}) profil ${action}.`,
+    ...(message ? ['', 'Üzenet:', message] : []),
+    '',
+    `Profil: ${artistProfileURL(artist.handle)}`,
+    `Kezelés az adminban: ${serverURL()}/admin/collections/profile-requests`,
+  ].join('\n')
+  await payload.sendEmail({
+    to,
+    replyTo: email,
+    subject: `Profilkérés (${type === 'remove' ? 'eltávolítás' : 'átvétel'}): @${artist.handle}`,
+    text,
+  })
 }
 
 const PRIVACY_FOOTER =

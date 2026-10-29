@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 
+import { isValidHandle, normalizeHandle } from '@/lib/validation'
 import type { Artist, Work } from '@/payload-types'
 
 export type InquiryTarget = { artist: Artist; work: Work | null }
@@ -20,8 +21,9 @@ export async function findInquiryTarget(
   handle: unknown,
   workId: unknown,
 ): Promise<InquiryTarget | null> {
-  if (typeof handle !== 'string' || !handle.trim()) return null
-  const normalized = handle.trim().replace(/^@/, '').toLowerCase()
+  if (typeof handle !== 'string') return null
+  const normalized = normalizeHandle(handle)
+  if (!isValidHandle(normalized)) return null
 
   const { docs } = await payload.find({
     collection: 'artists',

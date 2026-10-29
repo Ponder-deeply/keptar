@@ -1,6 +1,6 @@
 // Pure parser for Instagram's "Followers and following" export
-// (connections/followers_and_following/following.json). No Payload imports, so
-// it can be unit tested directly.
+// (connections/followers_and_following/following.json). No Payload imports (only the
+// pure helpers in src/lib/validation.ts), so it can be unit tested directly.
 //
 // Known shapes:
 //   older: {"relationships_following": [{"title": "", "string_list_data":
@@ -9,8 +9,9 @@
 //            [{"href": "https://www.instagram.com/_u/<handle>", "timestamp": 1700000000}]}]}
 // Some exports are a bare top-level array of the same entries; that is accepted too.
 
+import { isValidHandle, normalizeHandle } from '../../src/lib/validation'
+
 // Instagram usernames: letters, digits, "." and "_", at most 30 characters.
-const HANDLE_RE = /^[a-z0-9._]{1,30}$/
 const HREF_RE = /instagram\.com\/(?:_u\/)?([A-Za-z0-9._]+)\/?(?:[?#].*)?$/
 
 export type ParsedAccount = {
@@ -29,10 +30,7 @@ export type ParseResult = {
   invalid: InvalidEntry[]
 }
 
-/** Same normalisation as the `artists.handle` beforeValidate hook. */
-export const normalizeHandle = (raw: string): string => raw.trim().replace(/^@/, '').toLowerCase()
-
-export const isValidHandle = (handle: string): boolean => HANDLE_RE.test(handle)
+export { isValidHandle, normalizeHandle }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)

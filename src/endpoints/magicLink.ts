@@ -5,6 +5,7 @@ import { addSessionToUser, generatePayloadCookie } from 'payload/shared'
 
 import { clientIp, createRateLimiter } from '../lib/rateLimit'
 import { serverURL } from '../lib/serverURL'
+import { escapeHtml, isValidEmail } from '../lib/validation'
 
 // Passwordless login for visitors. Staff can still use the admin's password login.
 //
@@ -12,7 +13,6 @@ import { serverURL } from '../lib/serverURL'
 //   GET  /api/users/magic-link/verify  ?email&token&redirect -> sets the auth cookie, redirects
 
 const LINK_TTL_MS = 15 * 60 * 1000
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const hashToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex')
 
@@ -28,13 +28,10 @@ const safeRedirect = (value: unknown): string => {
   return url.origin === base.origin ? `${url.pathname}${url.search}${url.hash}` : '/'
 }
 
-const escapeHtml = (value: string) =>
-  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-
 export const requestMagicLink: PayloadHandler = async (req) => {
   const body = (await req.json?.().catch(() => null)) as { email?: unknown; redirect?: unknown } | null
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
-  if (!EMAIL_RE.test(email)) {
+  if (!isValidEmail(email)) {
     return Response.json({ error: 'Érvénytelen e-mail-cím.' }, { status: 400 })
   }
 

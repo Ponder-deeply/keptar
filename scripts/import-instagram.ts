@@ -21,6 +21,7 @@
 import fs from 'node:fs/promises'
 import { getPayload } from 'payload'
 
+import { parseIgPermalink } from '../src/components/igPermalink'
 import config from '../src/payload.config'
 import { parseArgs } from './lib/args'
 import { parseFollowingExport } from './lib/instagram-export'
@@ -97,10 +98,11 @@ async function addWorks(artistId: number | undefined, posts: IgPost[]): Promise<
       select: { igUrl: true },
       overrideAccess: true,
     })
-    known = new Set(docs.map((d) => d.igUrl).filter((u): u is string => Boolean(u)))
+    // Compare canonical permalinks: a hand-pasted URL may differ (no www, ?igsh=…).
+    known = new Set(docs.flatMap((d) => parseIgPermalink(d.igUrl) ?? []))
   }
   // Graph API returns newest first; create oldest first so "newest" sorting matches Instagram.
-  const fresh = posts.filter((p) => !known.has(p.url)).reverse()
+  const fresh = posts.filter((p) => !known.has(parseIgPermalink(p.url) ?? p.url)).reverse()
   if (dryRun || artistId === undefined) return fresh.length
   for (const post of fresh) {
     await payload.create({
@@ -169,6 +171,7 @@ for (const { index, reason } of parsed.invalid) console.log(`    #${index}: ${re
 if (failed.length) {
   console.log(`  failed:   ${failed.length}`)
   for (const { handle, error } of failed) console.log(`    ${handle}: ${error}`)
+  console.log('  Rerun with --update-posts to add the missing posts of artists created before the error.')
 }
 if (rateLimited) {
   console.log(`  stopped: rate-limited by Meta at ${rateLimited}`)

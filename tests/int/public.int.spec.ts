@@ -1,5 +1,5 @@
 import { getPayload, Payload } from 'payload'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { submitProfileRequest } from '@/app/(site)/muveszek/[handle]/profil/actions'
 import { getPublishedArtist, normaliseHandle } from '@/app/(site)/muveszek/[handle]/data'
@@ -11,6 +11,11 @@ import {
 import { externalUrl, inquiryHref, mediaPath } from '@/components/format'
 import { parseIgPermalink } from '@/components/igPermalink'
 import config from '@/payload.config'
+
+// The opt-out action rate-limits by client IP from request headers; outside Next there is no request.
+vi.mock('next/headers', () => ({
+  headers: async () => new Headers({ 'x-forwarded-for': '203.0.113.77' }),
+}))
 
 describe('directory query (pure)', () => {
   it('parses and validates search params', () => {
@@ -129,6 +134,20 @@ describe('public data access', () => {
 
     const after = await payload.count({ collection: 'profile-requests' })
     expect(after.totalDocs).toBe(before.totalDocs + 1)
+
+    // Five requests per hour per IP; the first one above counts.
+    for (let i = 0; i < 4; i++) {
+      const again = await submitProfileRequest(
+        { status: 'idle' },
+        form({ handle: 'teszt.kovacs.anna', email: 'anna@example.com', type: 'claim' }),
+      )
+      expect(again.status).toBe('ok')
+    }
+    const limited = await submitProfileRequest(
+      { status: 'idle' },
+      form({ handle: 'teszt.kovacs.anna', email: 'anna@example.com', type: 'claim' }),
+    )
+    expect(limited).toMatchObject({ status: 'error', message: expect.stringContaining('Túl sok') })
 
     // Clean up the test record.
     await payload.delete({

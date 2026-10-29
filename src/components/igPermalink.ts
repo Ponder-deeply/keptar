@@ -3,6 +3,12 @@
 const IG_POST_RE = /^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)\/?/
 
 /**
+ * The stricter shape stored in `works.igUrl`: an https /p/ or /reel/ URL, optionally
+ * with a query string. Shared by the field validator and the import script.
+ */
+export const IG_POST_URL_RE = /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]+\/?(\?[^\s]*)?$/
+
+/**
  * The canonical permalink of an Instagram post or reel, or null when `url` is not one.
  * The result only contains URL-safe characters, so it can go into HTML attributes as is.
  */

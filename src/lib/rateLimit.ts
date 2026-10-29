@@ -30,6 +30,9 @@ export function createRateLimiter({ windowMs, max }: { windowMs: number; max: nu
 /** Inquiry form: 5 per hour per IP. */
 export const allowInquiry = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 })
 
+/** Claim/remove profile requests: 5 per hour per IP. */
+export const allowProfileRequest = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 })
+
 /**
  * Client IP from proxy headers, or 'unknown'. Takes the *last* X-Forwarded-For
  * entry: that is the one our own proxy (Caddy) added; earlier entries are

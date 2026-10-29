@@ -8,11 +8,10 @@
 // (`pnpm instagram:token` gets both values). Business Discovery only sees
 // other *professional* accounts: personal accounts come back as not found.
 
+import { IG_POST_URL_RE } from '../../src/components/igPermalink'
+
 const DEFAULT_VERSION = 'v26.0'
 const PAGE_SIZE = 50
-
-// Same shape the `works.igUrl` validator accepts.
-const IG_POST_RE = /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]+\/?(\?[^\s]*)?$/
 
 export type GraphConfig = {
   accessToken: string
@@ -87,7 +86,7 @@ export async function fetchProfile(handle: string, cfg: GraphConfig): Promise<Ig
       profile.website = bd.website?.trim() || undefined
     }
     for (const m of bd.media?.data ?? []) {
-      if (!m.permalink || !IG_POST_RE.test(m.permalink)) {
+      if (!m.permalink || !IG_POST_URL_RE.test(m.permalink)) {
         profile.skipped++
         continue
       }

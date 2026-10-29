@@ -1,8 +1,10 @@
+import { EMAIL_MAX } from '@/lib/validation'
+
 // Limits and state shared by the inquiry form (client) and its server action.
 
 export const LIMITS = {
   nameMax: 100,
-  emailMax: 254,
+  emailMax: EMAIL_MAX,
   messageMin: 10,
   messageMax: 3000,
 } as const

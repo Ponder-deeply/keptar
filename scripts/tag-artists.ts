@@ -38,6 +38,7 @@ import { slugify } from '../src/fields/slugify'
 import type { Artist, Media, Tag } from '../src/payload-types'
 import { parseArgs } from './lib/args'
 import { serverURL } from '../src/lib/serverURL'
+import { normalizeHandle } from '../src/lib/validation'
 
 const MODEL = 'claude-sonnet-5-5'
 const MAX_IMAGES = 6
@@ -69,7 +70,7 @@ if (unknownFlags.length || args.positional.length) {
 const dryRun = args.flags.has('dry-run')
 const force = args.flags.has('force')
 const createTags = args.flags.has('create-tags')
-const onlyHandle = args.values.get('handle')?.trim().replace(/^@/, '').toLowerCase()
+const onlyHandle = (args.values.has('handle') ? normalizeHandle(args.values.get('handle')!) : undefined)
 const limit = args.values.has('limit') ? Number(args.values.get('limit')) : undefined
 if (limit !== undefined && !(Number.isInteger(limit) && limit > 0)) {
   console.error('--limit must be a positive integer')

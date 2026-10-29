@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { isStaff, staffOnly, staffOnlyField } from '../access/roles'
 import { REGIONS } from '../fields/regions'
+import { isValidHandle, normalizeHandle } from '../lib/validation'
 
 export const ARTIST_STATUSES = [
   // Imported from the Instagram following list, not yet reviewed by the curator.
@@ -37,10 +38,12 @@ export const Artists: CollectionConfig = {
       index: true,
       admin: { description: 'A @ nélkül, pl. "kovacs.anna.art". Ez a profil URL-je is.' },
       hooks: {
-        beforeValidate: [
-          ({ value }) => (typeof value === 'string' ? value.trim().replace(/^@/, '').toLowerCase() : value),
-        ],
+        beforeValidate: [({ value }) => (typeof value === 'string' ? normalizeHandle(value) : value)],
       },
+      // The public routes only accept valid Instagram names, so anything else would 404.
+      validate: (value: string | null | undefined) =>
+        (typeof value === 'string' && isValidHandle(value)) ||
+        'Csak kisbetű, szám, pont és alulvonás, legfeljebb 30 karakter (pl. kovacs.anna.art).',
     },
     { name: 'name', type: 'text', label: 'Név', required: true },
     {

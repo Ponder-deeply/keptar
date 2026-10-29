@@ -1,8 +1,7 @@
 import { cache } from 'react'
 
 import { getPayloadClient } from '@/components/payloadClient'
-
-const HANDLE_RE = /^[a-z0-9._]{1,64}$/
+import { isValidHandle, normalizeHandle } from '@/lib/validation'
 
 /** Normalises a handle from the URL; null when it cannot be an Instagram name. */
 export function normaliseHandle(raw: string): string | null {
@@ -12,8 +11,8 @@ export function normaliseHandle(raw: string): string | null {
   } catch {
     return null
   }
-  value = value.trim().replace(/^@/, '').toLowerCase()
-  return HANDLE_RE.test(value) ? value : null
+  value = normalizeHandle(value)
+  return isValidHandle(value) ? value : null
 }
 
 /**
