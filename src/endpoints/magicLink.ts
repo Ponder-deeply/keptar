@@ -137,6 +137,7 @@ const htmlPage = (body: string, extraHeaders: Record<string, string> = {}) =>
         'Cache-Control': 'no-store',
         // The token is in this page's URL; don't leak it to linked sites.
         'Referrer-Policy': 'no-referrer',
+        'Content-Security-Policy': "frame-ancestors 'none'",
         ...extraHeaders,
       },
     },
@@ -164,6 +165,12 @@ export const confirmMagicLink: PayloadHandler = async (req) => {
 /** POST: uses up the token and logs the user in. */
 export const verifyMagicLink: PayloadHandler = async (req) => {
   const { payload } = req
+  // The real POST always comes from the confirm page on this site. Refusing other
+  // origins stops login CSRF (logging a victim into the attacker's account).
+  const site = req.headers.get('sec-fetch-site')
+  const origin = req.headers.get('origin')
+  const sameOrigin = site ? site === 'same-origin' : origin === new URL(serverURL()).origin
+  if (!sameOrigin) return failRedirect()
   const form = await req.formData?.().catch(() => null)
   const field = (name: string) => {
     const value = form?.get(name)

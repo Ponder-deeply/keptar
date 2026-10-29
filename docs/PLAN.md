@@ -192,14 +192,17 @@ content client-side (two root layouts).
 - The purge cron only started after an `/api` or `/admin` request. Now
   `src/instrumentation.ts` starts it at boot.
 - Any logged-in visitor could rewrite `payload-jobs-stats` and stop the purge,
-  and could read or delete document locks. Both are now staff-only.
+  and could read or delete document locks. The stats are now staff-only. Locks
+  are staff-only too, except that `artist` users keep their own, so the admin
+  still works for them.
 - The redirect check could be bypassed with `/.//evil.com`.
 - Mail scanners could burn the magic link. The GET now shows a button, and the
-  POST uses up the token.
+  POST uses up the token. The POST refuses cross-site submissions (login CSRF).
 - Handles that the profile route rejects can no longer be saved.
 - Hand-pasted post URLs were duplicated by `--update-posts`.
 - Opt-out requests had no rate limit and no staff email.
-- Exhibitions exposed hidden artists' ids, and `aiTagged` was public.
+- Exhibitions exposed hidden artists' ids, both in the output and through
+  `where[artists]` filters, and `aiTagged` was public.
 - DB errors logged inquiry contents.
 - The seed had no production guard.
 - Opening day showed as "Hamarosan" (days are now compared in Budapest time).

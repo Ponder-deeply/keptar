@@ -9,7 +9,7 @@ import { buildConfig, type SanitizedConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
-import { isStaff, staffOnly } from './access/roles'
+import { adminUserLocks, canCreateLocks, isStaff, staffOnly } from './access/roles'
 import { Artists } from './collections/Artists'
 import { Exhibitions } from './collections/Exhibitions'
 import { Inquiries } from './collections/Inquiries'
@@ -94,14 +94,21 @@ const config = buildConfig({
  *   purge last ran; writing a far-future date there would stop the purge for good.
  * - `payload-locked-documents` reveals which (possibly unpublished) documents staff
  *   have open, and lets anyone create or delete locks.
- * Both are only used by the admin and the job runner, so restrict them to staff.
+ * Both are only used by the admin and the job runner. Locks stay usable for the
+ * `artist` role, which can open the admin (only their own locks).
  */
 function restrictInternalEntities(sanitized: SanitizedConfig): SanitizedConfig {
   const stats = sanitized.globals.find((g) => g.slug === 'payload-jobs-stats')
   if (stats) stats.access = { ...stats.access, read: staffOnly, update: staffOnly, readVersions: staffOnly }
   const locks = sanitized.collections.find((c) => c.slug === 'payload-locked-documents')
   if (locks) {
-    locks.access = { ...locks.access, create: staffOnly, read: staffOnly, update: staffOnly, delete: staffOnly }
+    locks.access = {
+      ...locks.access,
+      create: canCreateLocks,
+      read: adminUserLocks,
+      update: adminUserLocks,
+      delete: adminUserLocks,
+    }
   }
   return sanitized
 }

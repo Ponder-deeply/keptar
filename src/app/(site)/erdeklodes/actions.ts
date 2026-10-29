@@ -103,7 +103,7 @@ export async function submitInquiry(
     })
   } catch (err) {
     // The record stays with delivered: false so staff can follow up.
-    payload.logger.error({ err, inquiry: inquiry.id }, 'Inquiry email failed')
+    payload.logger.error({ err: errorSummary(err), inquiry: inquiry.id }, 'Inquiry email failed')
     return { status: 'sent' }
   }
   // "Delivered" means it reached the artist, not the staff fallback inbox.

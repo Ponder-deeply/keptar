@@ -11,10 +11,10 @@ let payload: Payload
 const email = `magic-${Date.now()}@magic-link-test.example`
 let ipCounter = 0
 
-const req = (init: { json?: unknown; search?: URLSearchParams; form?: URLSearchParams }) =>
+const req = (init: { json?: unknown; search?: URLSearchParams; form?: URLSearchParams; site?: string }) =>
   ({
     payload,
-    headers: new Headers({ 'x-forwarded-for': `192.0.2.${++ipCounter}` }),
+    headers: new Headers({ 'x-forwarded-for': `192.0.2.${++ipCounter}`, 'sec-fetch-site': init.site ?? 'same-origin' }),
     json: async () => init.json,
     searchParams: init.search ?? new URLSearchParams(),
     formData: async () => {
@@ -54,6 +54,10 @@ describe('magic link', () => {
       expect(page.status).toBe(200)
       expect(await page.text()).toContain('method="post"')
     }
+
+    // A cross-site form post (login CSRF) is refused and doesn't use up the token.
+    const csrf = await verifyMagicLink(req({ form: link.searchParams, site: 'cross-site' }))
+    expect(csrf.status).toBe(302)
 
     const login = await verifyMagicLink(req({ form: link.searchParams }))
     expect(login.status).toBe(200)

@@ -1,4 +1,4 @@
-import { getPayload, Payload } from 'payload'
+import { getPayload, Payload, type Where } from 'payload'
 import config from '@/payload.config'
 
 import { describe, it, beforeAll, expect } from 'vitest'
@@ -49,6 +49,23 @@ describe('access control', () => {
     await expect(
       payload.find({ collection: 'payload-locked-documents', overrideAccess: false, user }),
     ).rejects.toThrow()
+  })
+
+  it('artist-role users can still use the admin document locks (their own only)', async () => {
+    const artistUser = await payload.create({
+      collection: 'users',
+      data: { email: `artist-${Date.now()}@api-test.example`, password: 'x'.repeat(24), role: 'artist' },
+    })
+    try {
+      const locks = await payload.find({
+        collection: 'payload-locked-documents',
+        overrideAccess: false,
+        user: { ...artistUser, collection: 'users' },
+      })
+      expect(locks.docs.every((l) => (typeof l.user.value === 'object' ? l.user.value.id : l.user.value) === artistUser.id)).toBe(true)
+    } finally {
+      await payload.delete({ collection: 'users', id: artistUser.id })
+    }
   })
 
   it('a right swipe saves the work to the user, as the requester only', async () => {
@@ -118,6 +135,18 @@ describe('access control', () => {
       expect(anon.artists).toEqual([published.id])
       const staff = await payload.findByID({ collection: 'exhibitions', id: exhibition.id, depth: 0 })
       expect(staff.artists).toEqual([published.id, pending.id])
+      // Filtering by a hidden artist's id must not reveal that the exhibition lists them.
+      const byHidden: Where = { and: [{ id: { equals: exhibition.id } }, { artists: { equals: pending.id } }] }
+      const anonCount = await payload.count({ collection: 'exhibitions', where: byHidden, overrideAccess: false })
+      const staffCount = await payload.count({ collection: 'exhibitions', where: byHidden })
+      expect(staffCount.totalDocs).toBe(1)
+      expect(anonCount.totalDocs).toBe(1) // the artist condition is ignored for visitors...
+      const anonOther = await payload.count({
+        collection: 'exhibitions',
+        where: { and: [{ id: { equals: exhibition.id } }, { artists: { not_equals: pending.id } }] },
+        overrideAccess: false,
+      })
+      expect(anonOther.totalDocs).toBe(anonCount.totalDocs) // ...so both answers look the same
     } finally {
       await payload.delete({ collection: 'exhibitions', id: exhibition.id })
     }

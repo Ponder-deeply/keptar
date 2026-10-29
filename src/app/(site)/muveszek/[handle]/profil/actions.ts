@@ -75,7 +75,7 @@ export async function submitProfileRequest(
         message: message || undefined,
       })
     } catch (error) {
-      payload.logger.error({ err: error }, 'profile request email failed')
+      payload.logger.error({ err: errorSummary(error) }, 'profile request email failed')
     }
   } else {
     payload.logger.error('Profile request stored, but INQUIRY_FALLBACK_EMAIL is not set, so no curator was told')
