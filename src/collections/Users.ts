@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { adminOnly, adminOnlyField, hasRole, ROLES, staffOrOwner } from '../access/roles'
-import { requestMagicLink, verifyMagicLink } from '../endpoints/magicLink'
+import { confirmMagicLink, requestMagicLink, verifyMagicLink } from '../endpoints/magicLink'
 
 const ROLE_LABELS: Record<(typeof ROLES)[number], string> = {
   admin: 'Adminisztrátor',
@@ -20,6 +20,8 @@ export const Users: CollectionConfig = {
   auth: {
     // Visitors log in with a magic link (see endpoints below); staff may also use a password.
     tokenExpiration: 60 * 60 * 24 * 30,
+    // HTTPS only in production (Caddy terminates TLS); plain http on localhost.
+    cookies: { secure: process.env.NODE_ENV === 'production' },
   },
   access: {
     admin: ({ req }) => hasRole(req.user, 'admin', 'curator', 'artist'),
@@ -49,7 +51,8 @@ export const Users: CollectionConfig = {
   },
   endpoints: [
     { path: '/magic-link', method: 'post', handler: requestMagicLink },
-    { path: '/magic-link/verify', method: 'get', handler: verifyMagicLink },
+    { path: '/magic-link/verify', method: 'get', handler: confirmMagicLink },
+    { path: '/magic-link/verify', method: 'post', handler: verifyMagicLink },
   ],
   fields: [
     // Email added by default

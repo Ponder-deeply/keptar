@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 /** Asks for an email and requests a magic link. `redirect` is where the link lands after login. */
 export function MagicLinkForm({ redirect }: { redirect?: string }) {
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -16,8 +17,16 @@ export function MagicLinkForm({ redirect }: { redirect?: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, redirect }),
       })
-      setState(res.ok ? 'sent' : 'error')
+      if (res.ok) {
+        setState('sent')
+        return
+      }
+      // The endpoint explains 400 (bad address) and 429 (too many requests).
+      const body = (await res.json().catch(() => null)) as { error?: unknown } | null
+      setErrorMessage(typeof body?.error === 'string' ? body.error : null)
+      setState('error')
     } catch {
+      setErrorMessage(null)
       setState('error')
     }
   }
@@ -43,7 +52,7 @@ export function MagicLinkForm({ redirect }: { redirect?: string }) {
       </div>
       {state === 'error' && (
         <p className="form-error" role="alert">
-          Nem sikerült elküldeni. Ellenőrizd a címet, és próbáld újra.
+          {errorMessage ?? 'Nem sikerült elküldeni. Ellenőrizd a címet, és próbáld újra.'}
         </p>
       )}
     </form>
