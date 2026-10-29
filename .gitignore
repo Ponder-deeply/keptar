@@ -54,3 +54,6 @@ node_modules/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Claude Code agent worktrees
+/.claude/worktrees/
