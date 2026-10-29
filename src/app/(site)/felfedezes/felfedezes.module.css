@@ -37,6 +37,12 @@
   outline-offset: 4px;
 }
 
+/* Embedded Instagram iframes would swallow the drag; the post stays reachable
+   through the artist link and the profile page. */
+.card iframe {
+  pointer-events: none;
+}
+
 .card[data-dragging] {
   cursor: grabbing;
   transition: none;

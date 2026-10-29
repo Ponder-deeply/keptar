@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -79,7 +79,7 @@ describe('SwipeDeck', () => {
   it('posts a swipe for logged-in users (buttons and drag)', async () => {
     await renderDeck(true)
     fireEvent.click(screen.getByRole('button', { name: 'Mentem →' }))
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/swipes')
     expect(JSON.parse(init.body)).toMatchObject({ direction: 'right' })
@@ -89,8 +89,28 @@ describe('SwipeDeck', () => {
     fireEvent.pointerDown(card, { pointerId: 1, clientX: 200, button: 0, pointerType: 'touch' })
     fireEvent.pointerMove(card, { pointerId: 1, clientX: 100, pointerType: 'touch' })
     fireEvent.pointerUp(card, { pointerId: 1, clientX: 50, pointerType: 'touch' })
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ direction: 'left' })
   })
-})
 
+  it('sends swipes one at a time and puts a card back when saving fails', async () => {
+    let release!: () => void
+    fetchMock
+      .mockImplementationOnce(() => new Promise((resolve) => (release = () => resolve({ ok: false, status: 500 }))))
+      .mockResolvedValue({ ok: true, status: 201 })
+    await renderDeck(true)
+    const card = () => document.querySelector('[aria-roledescription]')!.getAttribute('aria-label')
+    const first = card()
+    key('ArrowRight')
+    key('ArrowLeft')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    // The second swipe waits for the first response.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await act(async () => release())
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('alert').textContent).toContain('Nem sikerült menteni')
+    expect(screen.queryByText(/Elmentve/)).toBeNull()
+    // The failed right swipe is back in the deck.
+    expect(card()).toBe(first)
+  })
+})

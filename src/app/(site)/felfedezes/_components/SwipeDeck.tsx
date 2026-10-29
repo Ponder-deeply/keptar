@@ -6,9 +6,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { swipeOrder } from '@/lib/recommend.order'
 import type { Work } from '@/payload-types'
 
+import { WorkMedia } from '@/components/WorkMedia'
+
 import styles from '../felfedezes.module.css'
-import { LocalWorkMedia } from './LocalWorkMedia'
-import { markSeen, restartSession, useSwipeSession } from './swipeSession'
+import { markSeen, markUnseen, restartSession, useSwipeSession } from './swipeSession'
 
 type Direction = 'left' | 'right'
 
@@ -39,6 +40,9 @@ export function SwipeDeck({
   const [error, setError] = useState<'auth' | 'server' | 'network' | null>(null)
   const [loginPrompt, setLoginPrompt] = useState(false)
   const loginLinkRef = useRef<HTMLAnchorElement>(null)
+  // Swipes are posted one at a time: the server appends right swipes to
+  // `users.saved` with a read-modify-write, so parallel requests could drop a save.
+  const queue = useRef<Promise<void>>(Promise.resolve())
 
   const swipe = useCallback(
     (direction: Direction) => {
@@ -48,20 +52,32 @@ export function SwipeDeck({
         setLoginPrompt(true)
         return
       }
-      markSeen(current.id)
+      const id = current.id
+      markSeen(id)
       setError(null)
-      setStatus(direction === 'right' ? `Elmentve: ${label}` : `Kihagyva: ${label}`)
+      if (!loggedIn || direction === 'left') setStatus(`Kihagyva: ${label}`)
       if (!loggedIn) return
-      fetch('/api/swipes', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ work: current.id, direction }),
+      queue.current = queue.current.then(async () => {
+        let failure: 'auth' | 'server' | 'network' | null = null
+        try {
+          const res = await fetch('/api/swipes', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ work: id, direction }),
+          })
+          if (!res.ok) failure = res.status === 401 || res.status === 403 ? 'auth' : 'server'
+        } catch {
+          failure = 'network'
+        }
+        if (failure) {
+          // Put the card back so the save can be retried in this session.
+          if (direction === 'right') markUnseen(id)
+          setError(failure)
+        } else if (direction === 'right') {
+          setStatus(`Elmentve: ${label}`)
+        }
       })
-        .then((res) => {
-          if (!res.ok) setError(res.status === 401 || res.status === 403 ? 'auth' : 'server')
-        })
-        .catch(() => setError('network'))
     },
     [current, loggedIn, loginPrompt],
   )
@@ -190,7 +206,14 @@ export function SwipeDeck({
             aria-roledescription="húzható kártya"
             aria-label={`${current.title || 'Mű'}${artist ? `, ${artist.name}` : ''}`}
           >
-            <LocalWorkMedia key={current.id} work={current} />
+            <WorkMedia
+              key={current.id}
+              work={current}
+              size="large"
+              sizes="(max-width: 640px) 100vw, 600px"
+              eager
+              caption={false}
+            />
           </div>
           <div className={styles.caption}>
             <p className={styles.title}>{current.title || 'Cím nélkül'}</p>

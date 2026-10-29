@@ -77,6 +77,13 @@ export function markSeen(id: number) {
   write({ ...current, seen: [...current.seen, id] })
 }
 
+/** Undoes `markSeen`, e.g. when saving a right swipe failed. */
+export function markUnseen(id: number) {
+  const current = parse(getSnapshot()) ?? newSession()
+  if (!current.seen.includes(id)) return
+  write({ ...current, seen: current.seen.filter((seenId) => seenId !== id) })
+}
+
 export function restartSession() {
   write(newSession())
 }

@@ -4,10 +4,10 @@ import { getPayload } from 'payload'
 import React from 'react'
 
 import { loadRecommendations, loadSwipeContext, loadVisibleWorks } from '@/lib/recommend'
+import { WorkMedia } from '@/components/WorkMedia'
 import config from '@/payload.config'
 import type { Work } from '@/payload-types'
 
-import { LocalWorkMedia } from '../felfedezes/_components/LocalWorkMedia'
 import { removeSaved } from './actions'
 import styles from './mentett.module.css'
 
@@ -16,16 +16,9 @@ export const metadata = { title: 'Mentett művek' }
 const RECOMMENDATION_LIMIT = 6
 
 function WorkItem({ work, children }: { work: Work; children?: React.ReactNode }) {
-  const artist = typeof work.artist === 'object' ? work.artist : null
   return (
     <li className={styles.item}>
-      <LocalWorkMedia work={work} />
-      <p className={styles.title}>{work.title || 'Cím nélkül'}</p>
-      {artist && (
-        <p className={styles.artist}>
-          <Link href={`/muveszek/${artist.handle}`}>{artist.name}</Link>
-        </p>
-      )}
+      <WorkMedia work={work} sizes="(max-width: 640px) 100vw, 260px" linkArtist />
       {children}
     </li>
   )
