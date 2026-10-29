@@ -1,0 +1,6 @@
+# Gitignored files Claude Code copies into each new worktree, so agents can run
+# the app and the int tests there. Each worktree gets its own SQLite copy.
+# node_modules is installed by .claude/hooks/worktree-setup.sh instead.
+.env
+keptar.db
+media/
