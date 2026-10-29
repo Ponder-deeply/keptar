@@ -22,6 +22,20 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
 - UI language Hungarian; code and comments English.
 - Public pages live under `src/app/(site)/`; Payload admin/API under `src/app/(payload)/`.
 
+## Claude Code setup (`.claude/`, `.mcp.json`)
+
+- Skills: `verify` (quality gate), `dev-server` (run, log in, drive the app),
+  `schema-change`, `agent-brief` (wave prompts and merging), `record-decision`.
+- Agents: `access-auditor` (data exposure and GDPR, read-only), `plan-verifier`
+  (checks docs/PLAN.md's Verification list).
+- Hooks: lint each edited file; block the end of a turn while `tsc` fails;
+  block generated files, `.env`, the lockfile, `DIMI1.md`, and schema edits by
+  subagents; refuse `pnpm seed` against Postgres.
+- Worktrees branch from local HEAD and get `.env`, `keptar.db` and `media/`
+  (`.worktreeinclude`). `node_modules` installs on the first pnpm command.
+- MCP: `next-devtools` (runtime errors and routes of the running dev server)
+  and `playwright` (headless browser).
+
 ## Commands
 
 - `pnpm dev`: dev server on http://localhost:3000 (admin at `/admin`).
