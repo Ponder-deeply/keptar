@@ -10,26 +10,42 @@ export function MagicLinkForm({ redirect }: { redirect?: string }) {
     event.preventDefault()
     setState('sending')
     const email = new FormData(event.currentTarget).get('email')
-    const res = await fetch('/api/users/magic-link', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, redirect }),
-    })
-    setState(res.ok ? 'sent' : 'error')
+    try {
+      const res = await fetch('/api/users/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, redirect }),
+      })
+      setState(res.ok ? 'sent' : 'error')
+    } catch {
+      setState('error')
+    }
   }
 
   if (state === 'sent') {
-    return <p>Elküldtük a belépési linket. Nézd meg a postafiókodat.</p>
+    return (
+      <p className="notice" role="status">
+        Elküldtük a belépési linket. Nézd meg a postafiókodat.
+      </p>
+    )
   }
 
   return (
-    <form onSubmit={onSubmit}>
-      <label htmlFor="email">E-mail-cím</label>
-      <input id="email" name="email" type="email" required autoComplete="email" />
-      <button type="submit" disabled={state === 'sending'}>
-        Belépési link küldése
-      </button>
-      {state === 'error' && <p>Nem sikerült elküldeni. Ellenőrizd a címet, és próbáld újra.</p>}
+    <form onSubmit={onSubmit} className="form">
+      <div>
+        <label htmlFor="email">E-mail-cím</label>
+        <input id="email" name="email" type="email" required autoComplete="email" />
+      </div>
+      <div>
+        <button type="submit" disabled={state === 'sending'}>
+          Belépési link küldése
+        </button>
+      </div>
+      {state === 'error' && (
+        <p className="form-error" role="alert">
+          Nem sikerült elküldeni. Ellenőrizd a címet, és próbáld újra.
+        </p>
+      )}
     </form>
   )
 }

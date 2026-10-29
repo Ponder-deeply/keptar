@@ -1,23 +1,62 @@
-import { headers as getHeaders } from 'next/headers.js'
 import Link from 'next/link'
-import { getPayload } from 'payload'
 import React from 'react'
 
-import config from '@/payload.config'
+import { ArtistCard } from '@/components/ArtistCard'
+import { getArtistCovers } from '@/components/artistCovers'
+import { getPayloadClient } from '@/components/payloadClient'
 
-// Placeholder home page; the real one comes with the public pages (Wave 2).
 export default async function HomePage() {
-  const headers = await getHeaders()
-  const payload = await getPayload({ config: await config })
-  const { user } = await payload.auth({ headers })
+  const payload = await getPayloadClient()
+  const { docs: artists } = await payload.find({
+    collection: 'artists',
+    where: { status: { equals: 'published' } },
+    sort: '-createdAt',
+    limit: 4,
+    depth: 1,
+    overrideAccess: false,
+    joins: false,
+  })
+  const covers = await getArtistCovers(
+    payload,
+    artists.map((a) => a.id),
+  )
 
   return (
-    <div className="home">
-      <div className="content">
+    <>
+      <section className="intro">
         <h1>Képtár</h1>
-        <p>Kortárs magyar képzőművészek.</p>
-        {user ? <p>Bejelentkezve: {user.email}</p> : <Link href="/belepes">Belépés</Link>}
-      </div>
-    </div>
+        <p>
+          Kortárs magyar képzőművészek egy helyen. Böngészd a művészeket médium, technika és régió
+          szerint, fedezz fel új műveket, és vedd fel a kapcsolatot az alkotókkal.
+        </p>
+        <div className="quick-links">
+          <Link href="/muveszek" className="button">
+            Művészek
+          </Link>
+          <Link href="/felfedezes" className="button button--secondary">
+            Felfedezés
+          </Link>
+          <Link href="/kiallitasok" className="button button--secondary">
+            Kiállítások
+          </Link>
+        </div>
+      </section>
+
+      {artists.length > 0 && (
+        <section aria-labelledby="friss">
+          <h2 id="friss">Legújabb művészek</h2>
+          <ul className="grid">
+            {artists.map((artist) => (
+              <li key={artist.id}>
+                <ArtistCard artist={artist} cover={covers.get(artist.id)} />
+              </li>
+            ))}
+          </ul>
+          <p>
+            <Link href="/muveszek?rendezes=uj">Összes művész</Link>
+          </p>
+        </section>
+      )}
+    </>
   )
 }
