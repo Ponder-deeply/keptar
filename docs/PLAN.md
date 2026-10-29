@@ -45,13 +45,16 @@ Pick the most mainstream stack, so that AI tools know it well:
    **Tagging:** a script sends each artist's bio and post images to Claude
    (`claude-sonnet-5-5`, vision), which proposes medium/technique/region tags
    as drafts. Dimitrij corrects them in the admin before publishing.
-3. **Picking posts:** Instagram has no public API for other people's posts, and
-   scraping profiles breaks quickly and gets accounts banned. The plan is to
-   store the profile URL plus **3–6 post URLs per artist**:
-   - preferred: Dimitrij or the user pastes post URLs into the admin; with 200
-     artists × 5 posts this is a few evenings' work;
-   - optional speed-up: `instaloader` on a **throwaway account**, rate-limited,
-     run only to fetch post URLs. Never Dimitrij's own account.
+3. **Picking posts:** `pnpm import:instagram` imports **every post** of each
+   new artist as an Instagram-embed work by default, plus name, bio and website.
+   It uses the official Graph API *Business Discovery* endpoint (needs our own
+   Instagram professional account linked to a Facebook Page and a Meta app
+   token: `INSTAGRAM_USER_ID`, `INSTAGRAM_ACCESS_TOKEN`; setup in
+   `docs/INSTAGRAM.md`, `pnpm instagram:token` gets both), so no scraping.
+   Limits: it only sees business/creator accounts; personal accounts are created
+   handle-only and their post URLs are pasted into the admin by hand.
+   `--handles-only` skips the API; `--update-posts` adds new posts to artists
+   already imported.
 4. **Embed:** Instagram's official embed (blockquote + `embed.js`) shows a post
    with credit and a link back, and needs no token. Limitations: no deep zoom,
    Instagram's frame around the image, and slower page loads. So the gallery

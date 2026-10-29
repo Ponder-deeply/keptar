@@ -1,26 +1,57 @@
-// Import Dimitrij's Instagram following list as pending artists.
+// Import Dimitrij's Instagram following list as pending artists, with all their
+// posts as Instagram-embed works.
 //
-//   pnpm import:instagram <path/to/following.json> [--dry-run]
+//   pnpm import:instagram <path/to/following.json> [--dry-run] [--handles-only] [--update-posts]
 //
-// One `artists` record per followed account: status "pending", name = handle.
-// Idempotent: handles already in the database are skipped and never touched,
-// because the curator may have edited them.
+// One `artists` record per followed account: status "pending". By default each
+// new artist's name, bio, website and every post link come from the Instagram
+// Graph API (Business Discovery, see scripts/lib/instagram-graph.ts; needs
+// INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID). Each post becomes a `works`
+// record with source "instagram". Personal accounts are invisible to that API,
+// so they are created with the handle only and their posts are added by hand.
+//
+// --handles-only  skip the API: handle-only artists, no works.
+// --update-posts  also add posts not yet stored to artists already in the
+//                 database (pending or published only). Their other fields are
+//                 never touched, because the curator may have edited them.
+//
+// Idempotent: existing handles are not recreated, and a post URL already stored
+// for an artist is not added again. If Meta rate-limits us the run stops early;
+// rerun it later (with --update-posts to finish half-fetched artists).
 import fs from 'node:fs/promises'
 import { getPayload } from 'payload'
 
 import config from '../src/payload.config'
 import { parseArgs } from './lib/args'
 import { parseFollowingExport } from './lib/instagram-export'
+import { fetchProfile, graphConfigFromEnv, RateLimitError, type IgPost } from './lib/instagram-graph'
 
-const USAGE = 'Usage: pnpm import:instagram <path/to/following.json> [--dry-run]'
+const USAGE =
+  'Usage: pnpm import:instagram <path/to/following.json> [--dry-run] [--handles-only] [--update-posts]'
+const FLAGS = ['dry-run', 'handles-only', 'update-posts']
 
 const args = parseArgs(process.argv.slice(2))
 const file = args.positional[0]
 const dryRun = args.flags.has('dry-run')
-const unknown = [...args.flags].filter((f) => f !== 'dry-run')
+const handlesOnly = args.flags.has('handles-only')
+const updatePosts = args.flags.has('update-posts')
+const unknown = [...args.flags].filter((f) => !FLAGS.includes(f))
 if (!file || unknown.length || args.positional.length > 1) {
   console.error(unknown.length ? `Unknown flag(s): ${unknown.map((f) => `--${f}`).join(' ')}` : USAGE)
   if (unknown.length) console.error(USAGE)
+  process.exit(1)
+}
+
+const graph = handlesOnly ? undefined : graphConfigFromEnv()
+if (!handlesOnly && !graph) {
+  console.error(
+    'Fetching posts needs INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID (see .env.example).\n' +
+      'Run with --handles-only to import just the handles.',
+  )
+  process.exit(1)
+}
+if (handlesOnly && updatePosts) {
+  console.error('--update-posts needs the API; it cannot be combined with --handles-only.')
   process.exit(1)
 }
 
@@ -34,40 +65,87 @@ try {
 
 const payload = await getPayload({ config })
 
-const existing = new Set(
+const existing = new Map(
   (
     await payload.find({
       collection: 'artists',
       where: { handle: { in: parsed.accounts.map((a) => a.handle) } },
       pagination: false,
       depth: 0,
-      select: { handle: true },
+      select: { handle: true, status: true },
       overrideAccess: true,
     })
-  ).docs.map((d) => d.handle),
+  ).docs.map((d) => [d.handle, d]),
 )
 
 const created: string[] = []
 const skippedExisting: string[] = []
+const personal: string[] = []
 const failed: { handle: string; error: string }[] = []
+let worksAdded = 0
+let rateLimited: string | undefined
+
+/** Adds the posts not yet stored for the artist; returns how many were (or would be) added. */
+async function addWorks(artistId: number | undefined, posts: IgPost[]): Promise<number> {
+  let known = new Set<string>()
+  if (artistId !== undefined) {
+    const { docs } = await payload.find({
+      collection: 'works',
+      where: { artist: { equals: artistId } },
+      pagination: false,
+      depth: 0,
+      select: { igUrl: true },
+      overrideAccess: true,
+    })
+    known = new Set(docs.map((d) => d.igUrl).filter((u): u is string => Boolean(u)))
+  }
+  // Graph API returns newest first; create oldest first so "newest" sorting matches Instagram.
+  const fresh = posts.filter((p) => !known.has(p.url)).reverse()
+  if (dryRun || artistId === undefined) return fresh.length
+  for (const post of fresh) {
+    await payload.create({
+      collection: 'works',
+      data: { artist: artistId, source: 'instagram', igUrl: post.url },
+      overrideAccess: true,
+    })
+  }
+  return fresh.length
+}
 
 for (const { handle } of parsed.accounts) {
-  if (existing.has(handle)) {
+  const current = existing.get(handle)
+  if (current && !(updatePosts && ['pending', 'published'].includes(current.status))) {
     skippedExisting.push(handle)
     continue
   }
-  if (dryRun) {
-    created.push(handle)
-    continue
-  }
   try {
-    await payload.create({
-      collection: 'artists',
-      data: { handle, name: handle, status: 'pending' },
-      overrideAccess: true,
-    })
-    created.push(handle)
+    const profile = graph ? await fetchProfile(handle, graph) : undefined
+    if (graph && !profile) personal.push(handle)
+
+    let artistId = current?.id
+    if (!current) {
+      if (!dryRun) {
+        const artist = await payload.create({
+          collection: 'artists',
+          data: {
+            handle,
+            name: profile?.name || handle,
+            bio: profile?.biography,
+            website: profile?.website,
+            status: 'pending',
+          },
+          overrideAccess: true,
+        })
+        artistId = artist.id
+      }
+      created.push(handle)
+    }
+    if (profile) worksAdded += await addWorks(artistId, profile.posts)
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      rateLimited = `${handle}: ${err.message}`
+      break
+    }
     failed.push({ handle, error: (err as Error).message })
   }
 }
@@ -75,6 +153,13 @@ for (const { handle } of parsed.accounts) {
 const verb = dryRun ? 'would create' : 'created'
 console.log(`\nInstagram import${dryRun ? ' (dry run, nothing written)' : ''}: ${file}`)
 console.log(`  ${verb}:  ${created.length}${created.length ? `  (${created.join(', ')})` : ''}`)
+if (graph) {
+  console.log(`  works ${dryRun ? 'to add' : 'added'}: ${worksAdded}`)
+  console.log(
+    `  no posts (personal, private or renamed account): ${personal.length}` +
+      `${personal.length ? `  (${personal.join(', ')})` : ''}`,
+  )
+}
 console.log(
   `  skipped:  ${skippedExisting.length + parsed.duplicates.length}` +
     `  (${skippedExisting.length} already in DB, ${parsed.duplicates.length} duplicate in file)`,
@@ -85,5 +170,9 @@ if (failed.length) {
   console.log(`  failed:   ${failed.length}`)
   for (const { handle, error } of failed) console.log(`    ${handle}: ${error}`)
 }
+if (rateLimited) {
+  console.log(`  stopped: rate-limited by Meta at ${rateLimited}`)
+  console.log('  Rerun later with --update-posts to continue.')
+}
 
-process.exit(failed.length ? 1 : 0)
+process.exit(failed.length || rateLimited ? 1 : 0)
