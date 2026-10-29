@@ -1,0 +1,83 @@
+{
+  "relationships_following": [
+    {
+      "title": "",
+      "media_list_data": [],
+      "string_list_data": [
+        { "href": "https://www.instagram.com/fake.horvath.lili.art", "value": "fake.horvath.lili.art", "timestamp": 1651234567 }
+      ]
+    },
+    {
+      "title": "",
+      "media_list_data": [],
+      "string_list_data": [
+        { "href": "https://www.instagram.com/fake_molnar_keramia", "value": "fake_molnar_keramia", "timestamp": 1662345678 }
+      ]
+    },
+    {
+      "title": "",
+      "media_list_data": [],
+      "string_list_data": [
+        { "href": "https://www.instagram.com/Fake.Varga.Grafika", "value": "Fake.Varga.Grafika", "timestamp": 1673456789 }
+      ]
+    },
+    {
+      "title": "",
+      "media_list_data": [],
+      "string_list_data": [
+        { "href": "https://www.instagram.com/teszt.kovacs.anna", "value": "teszt.kovacs.anna", "timestamp": 1680000000 }
+      ]
+    },
+    {
+      "title": "fake.farkas.szobor",
+      "string_list_data": [
+        { "href": "https://www.instagram.com/_u/fake.farkas.szobor", "timestamp": 1700000001 }
+      ]
+    },
+    {
+      "title": "fake.balogh.foto",
+      "string_list_data": [
+        { "href": "https://www.instagram.com/_u/fake.balogh.foto", "timestamp": 1705000000 }
+      ]
+    },
+    {
+      "title": "fake.papp.akvarell",
+      "string_list_data": [
+        { "href": "https://www.instagram.com/_u/fake.papp.akvarell", "timestamp": 1710000000 }
+      ]
+    },
+    {
+      "title": "fake_lakatos_textil",
+      "string_list_data": [
+        { "href": "https://www.instagram.com/_u/fake_lakatos_textil", "timestamp": 1715000000 }
+      ]
+    },
+    {
+      "title": "fake.galeria.budapest",
+      "string_list_data": [
+        { "href": "https://www.instagram.com/_u/fake.galeria.budapest", "timestamp": 1720000000 }
+      ]
+    },
+    {
+      "title": "fake.meszaros.mural",
+      "string_list_data": [
+        { "href": "https://www.instagram.com/_u/fake.meszaros.mural", "timestamp": 1725000000 }
+      ]
+    },
+    {
+      "title": "",
+      "media_list_data": [],
+      "string_list_data": [
+        { "href": "https://www.instagram.com/fake.horvath.lili.art", "value": "fake.horvath.lili.art", "timestamp": 1730000000 }
+      ]
+    },
+    {
+      "title": "",
+      "string_list_data": []
+    },
+    {
+      "title": "not a handle!",
+      "string_list_data": [{ "timestamp": 1735000000 }]
+    }
+  ]
+}
