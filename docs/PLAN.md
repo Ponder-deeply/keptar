@@ -130,6 +130,22 @@ instead of making it.
   Done = `pnpm dev`, the admin logs in, the seed runs,
   `pnpm build` and `tsc` pass.
 
+**Wave 1 outcome (done 2026-10-29, done inline rather than by an agent).**
+Differences from the plan above, which Wave 2 prompts must reflect:
+- Extra collections: `tags` (medium/technique/subject vocabulary, so curators
+  can add tags without a schema change) and `profile-requests` (claim/remove
+  requests behind the opt-out link).
+- `artists.status` is pending | published | rejected | hidden. The import
+  creates `pending`; "ticking" an artist means setting `published`; opt-out sets
+  `hidden`. `aiTagged` marks AI-proposed tags awaiting review.
+- The 12-month inquiry purge (`src/jobs/purge-inquiries.ts`) is already written
+  and registered. The *Inquiry* agent only needs the form, the mail and the record.
+- The right-swipe → `users.saved` logic is a hook in `Swipes.ts`; the *Swipe*
+  agent only creates `swipes` records.
+- A minimal `/belepes` magic-link login page exists; *Public pages* may restyle it.
+- Inquiries need an artist email; most imported artists have none, so the
+  record is still created with `delivered: false` and staff follow up.
+
 **Wave 2: four agents in parallel, each in its own `isolation: "worktree"`**
 | Agent | Owns | Done when |
 |---|---|---|

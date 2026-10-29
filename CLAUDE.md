@@ -7,7 +7,7 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
 
 - **Tasks and plan:** `docs/PLAN.md`. The MVP scope, the data model and the
   agent waves (Wave 1 scaffold → Wave 2 four parallel agents → Wave 3
-  merge/review → Wave 4 deploy). Wave 0 is done. Next is **Wave 1**.
+  merge/review → Wave 4 deploy). Waves 0 and 1 are done. Next is **Wave 2**.
 - **Product vision (Hungarian, Dimitrij's wording):**
   `~/Documents/Brain/Personal/Projects/Képtár/DIMI1.md` (read-only, never edit).
 - **Decisions hub (Hungarian):** `~/Documents/Brain/Personal/Projects/Képtár/Képtár.md`.
@@ -20,3 +20,54 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
 - After Wave 1 the schema is frozen: only the orchestrating session edits
   `src/collections/*` and `payload.config.ts`; agents report needed schema changes.
 - UI language Hungarian; code and comments English.
+- Public pages live under `src/app/(site)/`; Payload admin/API under `src/app/(payload)/`.
+
+## Commands
+
+- `pnpm dev`: dev server on http://localhost:3000 (admin at `/admin`).
+- `pnpm seed`: wipe content and recreate fake data (6 artists, 24 works, venues,
+  exhibitions). Users are upserted: `admin@keptar.local` / `keptar-admin`,
+  `kurator@keptar.local` / `keptar-kurator`, `latogato@keptar.local` / `keptar-latogato`.
+- `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test:int` (needs a seeded DB).
+- After a schema change: `pnpm generate:types` (and `pnpm generate:importmap`
+  if admin components changed).
+
+## Schema (frozen; see `src/collections/`)
+
+- `artists`: `handle` (IG name, unique, the profile URL), `status`
+  pending | published | rejected | hidden. The public only sees `published`;
+  `email`, `claimedBy`, `curatorNotes` are staff-only fields.
+- `works`: `artist`, `source` instagram (`igUrl`) | upload (`image` → `media`),
+  `tags`. The public only sees works of published artists.
+- `tags`: `kind` medium | technique | subject, with `slug` for URL filters.
+  Artists' `medium` / `technique` and works' `tags` point here.
+- `venues` (lat/lng), `exhibitions` (venue, artists, dates).
+- `inquiries` and `profile-requests`: created server-side only, with
+  `overrideAccess: true`; staff read them. `jobs/purge-inquiries.ts` deletes
+  inquiries older than 12 months (nightly Payload job).
+- `swipes`: logged-in users only; `user` is forced to the requester, and a right
+  swipe adds the work to `users.saved` (hook in `Swipes.ts`).
+- `users`: `role` admin | curator | artist | user (only admins change it), `saved`.
+  Access helpers: `src/access/roles.ts`.
+
+## Auth and email
+
+- Visitors log in by magic link: the form at `/belepes` posts to
+  `POST /api/users/magic-link`; the emailed link hits
+  `GET /api/users/magic-link/verify`, which sets the Payload cookie
+  (`src/endpoints/magicLink.ts`). Staff can also use the admin password login.
+- Get the logged-in user server-side with `payload.auth({ headers })`.
+- Email goes through `payload.sendEmail`. Without `RESEND_API_KEY` the whole
+  message (including links) is printed to the dev server log.
+- Payload accepts the auth cookie only from same-origin requests, so testing
+  with curl needs `-H 'Sec-Fetch-Site: same-origin'`.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
