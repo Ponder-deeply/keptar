@@ -7,7 +7,7 @@ import { getPayload } from 'payload'
 import { sendInquiryEmail } from '@/lib/mail'
 
 import { findInquiryTarget } from './lookup'
-import { allowInquiry, clientIp } from './rateLimit'
+import { allowInquiry, clientIp } from '@/lib/rateLimit'
 import { HONEYPOT_FIELD, LIMITS, type InquiryFormState } from './shared'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

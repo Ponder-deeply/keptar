@@ -1,4 +1,5 @@
 import type { Payload } from 'payload'
+import { serverURL } from './serverURL'
 
 export type InquiryEmailInput = {
   /** Where the email goes: the artist, or the staff fallback address. */
@@ -19,12 +20,9 @@ export const escapeHtml = (value: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 
-const siteURL = (): string =>
-  (process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000').replace(/\/$/, '')
-
 /** Public profile URL of an artist (route built by the public pages). */
 export const artistProfileURL = (handle: string): string =>
-  `${siteURL()}/muveszek/${encodeURIComponent(handle)}`
+  `${serverURL()}/muveszek/${encodeURIComponent(handle)}`
 
 const workLabel = (work: InquiryEmailInput['work']): string | null => {
   if (!work) return null

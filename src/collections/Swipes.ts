@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { ValidationError } from 'payload'
 
 import { loggedIn, staffOrOwner } from '../access/roles'
 
@@ -18,9 +19,17 @@ export const Swipes: CollectionConfig = {
   },
   hooks: {
     beforeChange: [
-      ({ data, req, operation }) => {
+      async ({ data, req, operation }) => {
+        if (operation !== 'create') return data
         // A user can only swipe as themselves.
-        if (operation === 'create' && req.user) data.user = req.user.id
+        if (req.user) data.user = req.user.id
+        // ...and only on works of published artists.
+        const { totalDocs } = await req.payload.count({
+          collection: 'works',
+          where: { and: [{ id: { equals: data.work } }, { 'artist.status': { equals: 'published' } }] },
+          req,
+        })
+        if (!totalDocs) throw new ValidationError({ errors: [{ message: 'Nincs ilyen mű.', path: 'work' }] })
         return data
       },
     ],

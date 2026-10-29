@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { isStaff, staffOnly } from '../access/roles'
 
-const IG_POST_RE = /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]+\/?/
+const IG_POST_RE = /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]+\/?(\?[^\s]*)?$/
 
 export const Works: CollectionConfig = {
   slug: 'works',

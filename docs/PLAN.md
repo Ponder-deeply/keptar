@@ -164,6 +164,26 @@ links they need, and I add them at merge.
   against the Verification list below and report failures, without fixing
   them. I fix the failures, or send a targeted agent back.
 
+**Wave 3 outcome (done 2026-10-29).** All four branches merged; the review
+found 15 issues. Fixed: email/password takeover via self-update, open redirect
+after magic-link login, hidden artists' images public via `/api/media`,
+build-time-frozen server URL (now runtime `SERVER_URL`), writable magic-link
+fields, logged-out look after following the email link, spoofable rate-limit IP,
+no magic-link throttle, staff seeing unpublished works in the swipe deck, job
+queue open to visitors, swipes on non-public works, doubled page titles.
+Left open (low): exhibitions API exposes hidden artists' bare ids; `aiTagged`
+and the works join are public on `/api/artists`; artists with empty AI proposals
+get re-sent on each tagging run; exhibition opening day counts as "Hamarosan"
+until noon UTC; no staff notification for profile requests; duplicated helpers
+(email regex, handle normalisation); the swipe deck ships full Work objects;
+visitors arriving from another site look logged out on that first page
+(Payload's CSRF check). Known Next limitation: `notFound()` pages render their
+content client-side (two root layouts).
+
+Wave 4 must also: generate Postgres migrations (`payload migrate:create` against
+Postgres) and wire `prodMigrations`; test the app once on Postgres; set
+`SERVER_URL`; keep Caddy in front (it sets `X-Forwarded-For`).
+
 **Wave 4: one agent, after the user OKs it**
 - *Deploy agent*: Hetzner VPS Docker Compose, Caddy TLS, env/secrets, backups
   with `pg_dump` cron. Only after the user provides the server and domain,

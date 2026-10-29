@@ -1,7 +1,10 @@
 import crypto from 'crypto'
-import type { PayloadHandler, PayloadRequest } from 'payload'
+import type { PayloadHandler } from 'payload'
 import { getFieldsToSign, jwtSign } from 'payload'
 import { addSessionToUser, generatePayloadCookie } from 'payload/shared'
+
+import { clientIp, createRateLimiter } from '../lib/rateLimit'
+import { serverURL } from '../lib/serverURL'
 
 // Passwordless login for visitors. Staff can still use the admin's password login.
 //
@@ -13,17 +16,30 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const hashToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex')
 
-/** Only allow same-site relative paths, to avoid an open redirect. */
-const safeRedirect = (value: unknown): string =>
-  typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : '/'
+// Each request emails a link (and may create a user), so throttle per IP and per address.
+const allowIp = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 20 })
+const allowEmail = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 })
 
-const serverURL = (req: PayloadRequest) => req.payload.config.serverURL || 'http://localhost:3000'
+/** Only allow paths on this site, to avoid an open redirect (`//x`, `/\x` etc. resolve off-site). */
+const safeRedirect = (value: unknown): string => {
+  if (typeof value !== 'string' || !value.startsWith('/')) return '/'
+  const base = new URL(serverURL())
+  const url = new URL(value, base)
+  return url.origin === base.origin ? `${url.pathname}${url.search}${url.hash}` : '/'
+}
+
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 export const requestMagicLink: PayloadHandler = async (req) => {
   const body = (await req.json?.().catch(() => null)) as { email?: unknown; redirect?: unknown } | null
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
   if (!EMAIL_RE.test(email)) {
     return Response.json({ error: 'Érvénytelen e-mail-cím.' }, { status: 400 })
+  }
+
+  if (!allowIp(clientIp(req.headers)) || !allowEmail(email)) {
+    return Response.json({ error: 'Túl sok kérés. Próbáld újra később.' }, { status: 429 })
   }
 
   const { payload } = req
@@ -56,7 +72,7 @@ export const requestMagicLink: PayloadHandler = async (req) => {
     returning: false,
   })
 
-  const link = new URL('/api/users/magic-link/verify', serverURL(req))
+  const link = new URL('/api/users/magic-link/verify', serverURL())
   link.searchParams.set('email', email)
   link.searchParams.set('token', token)
   link.searchParams.set('redirect', safeRedirect(body?.redirect))
@@ -78,8 +94,7 @@ export const verifyMagicLink: PayloadHandler = async (req) => {
   const token = params.get('token') ?? ''
   const redirect = safeRedirect(params.get('redirect'))
 
-  const fail = () =>
-    Response.redirect(new URL('/belepes?hiba=lejart', serverURL(req)).toString(), 302)
+  const fail = () => Response.redirect(new URL('/belepes?hiba=lejart', serverURL()).toString(), 302)
 
   if (!email || !token) return fail()
 
@@ -134,11 +149,15 @@ export const verifyMagicLink: PayloadHandler = async (req) => {
     token: jwt,
   })
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: new URL(redirect, serverURL(req)).toString(),
-      'Set-Cookie': cookie,
+  // Redirect from an HTML page rather than with a 302: the user arrives from their
+  // mail client, and Payload ignores the auth cookie on cross-site requests, so a
+  // direct redirect would land them on a page that looks logged out.
+  const target = escapeHtml(new URL(redirect, serverURL()).toString())
+  return new Response(
+    `<!doctype html><html lang="hu"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${target}"><title>Belépés · Képtár</title></head><body><p>Beléptél. <a href="${target}">Tovább</a></p></body></html>`,
+    {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': cookie, 'Cache-Control': 'no-store' },
     },
-  })
+  )
 }

@@ -11,7 +11,7 @@ import { LocalWorkMedia } from '../felfedezes/_components/LocalWorkMedia'
 import { removeSaved } from './actions'
 import styles from './mentett.module.css'
 
-export const metadata = { title: 'Mentett művek · Képtár' }
+export const metadata = { title: 'Mentett művek' }
 
 const RECOMMENDATION_LIMIT = 6
 

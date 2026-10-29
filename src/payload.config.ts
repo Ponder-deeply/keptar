@@ -9,6 +9,7 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
+import { isStaff } from './access/roles'
 import { Artists } from './collections/Artists'
 import { Exhibitions } from './collections/Exhibitions'
 import { Inquiries } from './collections/Inquiries'
@@ -21,6 +22,7 @@ import { Venues } from './collections/Venues'
 import { Works } from './collections/Works'
 import { purgeInquiries } from './jobs/purge-inquiries'
 import { consoleEmailAdapter } from './lib/consoleEmail'
+import { serverURL } from './lib/serverURL'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -46,7 +48,7 @@ const email = process.env.RESEND_API_KEY
   : consoleEmailAdapter
 
 export default buildConfig({
-  serverURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+  serverURL: serverURL(),
   admin: {
     user: Users.slug,
     importMap: {
@@ -67,6 +69,11 @@ export default buildConfig({
   db,
   email,
   jobs: {
+    access: {
+      run: ({ req }) => isStaff(req.user),
+      queue: ({ req }) => isStaff(req.user),
+      cancel: ({ req }) => isStaff(req.user),
+    },
     tasks: [purgeInquiries],
     autoRun: [{ cron: '0 * * * *', queue: 'nightly' }],
     // Only the long-running server processes jobs, not build or one-off scripts.

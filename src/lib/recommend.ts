@@ -102,15 +102,18 @@ export async function loadSwipeContext(payload: Payload, user: User): Promise<Sw
   }
 }
 
-/** Every work the user may see, with artist, tags and image populated. */
-export async function loadVisibleWorks(payload: Payload, user: User | null): Promise<Work[]> {
+/**
+ * Every publicly visible work, with artist, tags and image populated. Loaded with
+ * public access whoever is viewing, so staff don't get unpublished works or
+ * staff-only fields in the deck.
+ */
+export async function loadVisibleWorks(payload: Payload, _user?: User | null): Promise<Work[]> {
   const { docs } = await payload.find({
     collection: 'works',
     depth: 1,
     pagination: false,
     sort: 'id',
     overrideAccess: false,
-    user,
   })
   // Works whose artist is not readable come back with an unpopulated artist; drop them.
   return docs.filter((w) => typeof w.artist === 'object' && w.artist != null)

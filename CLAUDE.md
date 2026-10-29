@@ -7,7 +7,7 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
 
 - **Tasks and plan:** `docs/PLAN.md`. The MVP scope, the data model and the
   agent waves (Wave 1 scaffold → Wave 2 four parallel agents → Wave 3
-  merge/review → Wave 4 deploy). Waves 0 and 1 are done. Next is **Wave 2**.
+  merge/review → Wave 4 deploy). Waves 0–3 are done. Next is **Wave 4** (needs the user's server and domain).
 - **Product vision (Hungarian, Dimitrij's wording):**
   `~/Documents/Brain/Personal/Projects/Képtár/DIMI1.md` (read-only, never edit).
 - **Decisions hub (Hungarian):** `~/Documents/Brain/Personal/Projects/Képtár/Képtár.md`.
@@ -48,7 +48,10 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
 - `swipes`: logged-in users only; `user` is forced to the requester, and a right
   swipe adds the work to `users.saved` (hook in `Swipes.ts`).
 - `users`: `role` admin | curator | artist | user (only admins change it), `saved`.
+  Only admins can change a user's `email` or `password` (hook in `Users.ts`).
   Access helpers: `src/access/roles.ts`.
+- `media`: the public can only read files used by a published artist's work or
+  an exhibition.
 
 ## Auth and email
 
@@ -59,6 +62,10 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
 - Get the logged-in user server-side with `payload.auth({ headers })`.
 - Email goes through `payload.sendEmail`. Without `RESEND_API_KEY` the whole
   message (including links) is printed to the dev server log.
+- The site URL comes from the server-only `SERVER_URL`, read at runtime
+  (`src/lib/serverURL.ts`); don't use a `NEXT_PUBLIC_*` variable for it.
+- In-memory rate limits (`src/lib/rateLimit.ts`) on the magic link and the
+  inquiry form; the client IP is the last `X-Forwarded-For` entry (Caddy's).
 - Payload accepts the auth cookie only from same-origin requests, so testing
   with curl needs `-H 'Sec-Fetch-Site: same-origin'`.
 

@@ -33,6 +33,20 @@ export const Users: CollectionConfig = {
     },
     delete: adminOnly,
   },
+  hooks: {
+    beforeOperation: [
+      ({ args, operation, req }) => {
+        // Only admins may change a login identity. Otherwise a visitor could move
+        // their account onto someone else's unclaimed email and keep a password to it.
+        // (Runs before Payload reads `password`, which happens ahead of other hooks.)
+        if (operation === 'update' && !args.overrideAccess && !hasRole(req.user, 'admin') && args.data) {
+          delete args.data.email
+          delete args.data.password
+        }
+        return args
+      },
+    ],
+  },
   endpoints: [
     { path: '/magic-link', method: 'post', handler: requestMagicLink },
     { path: '/magic-link/verify', method: 'get', handler: verifyMagicLink },
@@ -60,15 +74,18 @@ export const Users: CollectionConfig = {
       relationTo: 'works',
       hasMany: true,
     },
+    // Written only by the magic-link endpoint through payload.db, which skips access.
     {
       name: 'magicLinkHash',
       type: 'text',
       hidden: true,
+      access: { create: () => false, read: () => false, update: () => false },
     },
     {
       name: 'magicLinkExpiresAt',
       type: 'date',
       hidden: true,
+      access: { create: () => false, read: () => false, update: () => false },
     },
   ],
 }

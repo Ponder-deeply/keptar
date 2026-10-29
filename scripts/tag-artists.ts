@@ -37,6 +37,7 @@ import { REGIONS } from '../src/fields/regions'
 import { slugify } from '../src/fields/slugify'
 import type { Artist, Media, Tag } from '../src/payload-types'
 import { parseArgs } from './lib/args'
+import { serverURL } from '../src/lib/serverURL'
 
 const MODEL = 'claude-sonnet-5-5'
 const MAX_IMAGES = 6
@@ -176,7 +177,7 @@ const vocabulary = KINDS.map(
       .join('\n') || '  (none yet)'),
 ).join('\n')
 
-const SYSTEM = `You help the curator of Képtár, a non-profit showcase of contemporary Hungarian visual artists, triage accounts imported from his Instagram following list.
+const SYSTEM = `You help the curator of Képtár, a non-profit showcase of contemporary Hungarian visual artists, triage accounts imported from the curator's Instagram following list.
 
 For one account you get what is known: handle, name, maybe a bio, city, website, and images of works. Propose tags as drafts; the curator reviews every proposal before anything is published.
 
@@ -207,7 +208,7 @@ async function imageBlock(media: Media): Promise<Anthropic.Beta.BetaImageBlockPa
   }
   // Remote storage (e.g. R2 in production): fetch through the public URL.
   if (!data && variant.url) {
-    const res = await fetch(new URL(variant.url, process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'))
+    const res = await fetch(new URL(variant.url, serverURL()))
     if (res.ok) data = Buffer.from(await res.arrayBuffer())
   }
   if (!data) return undefined

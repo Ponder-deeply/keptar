@@ -9,7 +9,7 @@ import { InquiryForm } from './InquiryForm'
 import { findInquiryTarget } from './lookup'
 
 export const metadata = {
-  title: 'Érdeklődés · Képtár',
+  title: 'Érdeklődés',
   robots: { index: false },
 }
 

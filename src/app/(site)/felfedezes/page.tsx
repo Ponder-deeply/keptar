@@ -8,7 +8,7 @@ import config from '@/payload.config'
 import { SwipeDeck } from './_components/SwipeDeck'
 import styles from './felfedezes.module.css'
 
-export const metadata = { title: 'Felfedezés · Képtár' }
+export const metadata = { title: 'Felfedezés' }
 
 export default async function DiscoverPage() {
   const headers = await getHeaders()
