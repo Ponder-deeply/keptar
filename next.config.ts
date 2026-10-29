@@ -7,6 +7,8 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
+  // Two root layouts ((site), (payload)) need app/global-not-found.tsx for 404s.
+  experimental: { globalNotFound: true },
   images: {
     localPatterns: [
       {
