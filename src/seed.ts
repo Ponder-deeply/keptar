@@ -5,6 +5,12 @@ import { getPayload } from 'payload'
 
 import config from './payload.config'
 
+// It deletes all content and creates accounts with passwords published in CLAUDE.md.
+if (process.env.NODE_ENV === 'production' || /^postgres(ql)?:\/\//.test(process.env.DATABASE_URL ?? '')) {
+  console.error('Refusing to seed: this looks like a production database (NODE_ENV or a postgres DATABASE_URL).')
+  process.exit(1)
+}
+
 const payload = await getPayload({ config })
 
 const CONTENT = [

@@ -1,6 +1,27 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionAfterReadHook, CollectionConfig } from 'payload'
 
-import { anyone, staffOnly } from '../access/roles'
+import { anyone, isStaff, staffOnly } from '../access/roles'
+
+/**
+ * Visitors only see the published artists of an exhibition. Without this, the
+ * `artists` relationship would expose hidden or pending artists' ids (depth 0).
+ */
+const hideUnpublishedArtists: CollectionAfterReadHook = async ({ doc, req, overrideAccess }) => {
+  if (overrideAccess || isStaff(req.user) || !Array.isArray(doc.artists) || doc.artists.length === 0) return doc
+  const ids = doc.artists.map((a: number | { id: number }) => (typeof a === 'object' ? a.id : a))
+  const { docs } = await req.payload.find({
+    collection: 'artists',
+    where: { and: [{ id: { in: ids } }, { status: { equals: 'published' } }] },
+    select: { status: true },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+  const published = new Set(docs.map((a) => a.id))
+  doc.artists = doc.artists.filter((a: number | { id: number }) => published.has(typeof a === 'object' ? a.id : a))
+  return doc
+}
 
 export const Exhibitions: CollectionConfig = {
   slug: 'exhibitions',
@@ -9,6 +30,7 @@ export const Exhibitions: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'venue', 'startDate', 'endDate'],
   },
+  hooks: { afterRead: [hideUnpublishedArtists] },
   access: {
     read: anyone,
     create: staffOnly,

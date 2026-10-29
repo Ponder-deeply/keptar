@@ -100,7 +100,12 @@ export default async function DirectoryPage(props: {
         {result.totalDocs} művész
       </p>
 
-      {result.docs.length === 0 ? (
+      {result.docs.length === 0 && result.totalDocs > 0 ? (
+        // A stale link or hand-edited ?oldal= past the last page.
+        <p>
+          Ez az oldal üres. <Link href={directoryHref(filters, { oldal: 1 })}>Vissza az első oldalra</Link>
+        </p>
+      ) : result.docs.length === 0 ? (
         <p>Nincs a szűrőknek megfelelő művész.</p>
       ) : (
         <ul className="grid">
@@ -112,7 +117,7 @@ export default async function DirectoryPage(props: {
         </ul>
       )}
 
-      {result.totalPages > 1 && (
+      {result.totalPages > 1 && result.docs.length > 0 && (
         <nav className="pagination" aria-label="Lapozás">
           {result.hasPrevPage && result.prevPage ? (
             <Link href={directoryHref(filters, { oldal: result.prevPage })} rel="prev">

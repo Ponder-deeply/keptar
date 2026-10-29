@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 
 import { getPayloadClient } from '@/components/payloadClient'
+import { errorSummary } from '@/lib/errors'
 import { sendProfileRequestEmail, staffEmail } from '@/lib/mail'
 import { allowProfileRequest, clientIp } from '@/lib/rateLimit'
 import { isValidEmail } from '@/lib/validation'
@@ -58,7 +59,7 @@ export async function submitProfileRequest(
       overrideAccess: true,
     })
   } catch (error) {
-    payload.logger.error({ err: error }, 'profile request failed')
+    payload.logger.error({ err: errorSummary(error) }, 'profile request failed')
     return { status: 'error', message: 'Nem sikerült elküldeni. Próbáld újra később.', fields }
   }
 

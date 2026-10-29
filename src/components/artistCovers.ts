@@ -9,22 +9,25 @@ export async function getArtistCovers(payload: Payload, artistIds: number[]): Pr
   const covers = new Map<number, Media>()
   if (artistIds.length === 0) return covers
 
-  const { docs } = await payload.find({
-    collection: 'works',
-    where: { and: [{ artist: { in: artistIds } }, { source: { equals: 'upload' } }] },
-    sort: 'createdAt',
-    depth: 1,
-    limit: artistIds.length * 10,
-    pagination: false,
-    overrideAccess: false,
-    select: { artist: true, image: true },
-    populate: { artists: { handle: true } },
+  // One small query per artist (a page holds a few dozen): a shared limit would let
+  // one artist with many uploads crowd out everyone else's cover.
+  const results = await Promise.all(
+    artistIds.map((artistId) =>
+      payload.find({
+        collection: 'works',
+        where: { and: [{ artist: { equals: artistId } }, { source: { equals: 'upload' } }] },
+        sort: 'createdAt',
+        depth: 1,
+        limit: 1,
+        pagination: false,
+        overrideAccess: false,
+        select: { image: true },
+      }),
+    ),
+  )
+  artistIds.forEach((artistId, i) => {
+    const media = asMedia(results[i].docs[0]?.image)
+    if (media) covers.set(artistId, media)
   })
-
-  for (const work of docs) {
-    const artistId = typeof work.artist === 'object' ? work.artist.id : work.artist
-    const media = asMedia(work.image)
-    if (media && !covers.has(artistId)) covers.set(artistId, media)
-  }
   return covers
 }

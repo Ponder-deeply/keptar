@@ -8,21 +8,23 @@ import type { Exhibition } from '@/payload-types'
 
 export const metadata: Metadata = { title: 'Kiállítások' }
 
+const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Budapest' })
+/** `YYYY-MM-DD` in Budapest, so plain string comparison orders days. */
+const budapestDay = (date: Date): string => dayFormat.format(date)
+
 export default async function ExhibitionsPage() {
   const payload = await getPayloadClient()
-  const now = new Date()
-  const startOfToday = new Date(now)
-  startOfToday.setHours(0, 0, 0, 0)
+  const today = budapestDay(new Date())
+  // A day early, as a coarse DB filter; the exact cut is by Budapest calendar day below.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   // Current or upcoming: ends today or later; without an end date, a one-day event from today on.
-  const { docs } = await payload.find({
+  const { docs: candidates } = await payload.find({
     collection: 'exhibitions',
     where: {
       or: [
-        { endDate: { greater_than_equal: startOfToday.toISOString() } },
-        {
-          and: [{ endDate: { exists: false } }, { startDate: { greater_than_equal: startOfToday.toISOString() } }],
-        },
+        { endDate: { greater_than_equal: since } },
+        { and: [{ endDate: { exists: false } }, { startDate: { greater_than_equal: since } }] },
       ],
     },
     sort: 'startDate',
@@ -31,8 +33,11 @@ export default async function ExhibitionsPage() {
     overrideAccess: false,
   })
 
-  const current = docs.filter((e) => new Date(e.startDate) <= now)
-  const upcoming = docs.filter((e) => new Date(e.startDate) > now)
+  // Dates are compared as Budapest calendar days: the admin stores date-only values
+  // at noon UTC, and the server runs in UTC.
+  const docs = candidates.filter((e) => budapestDay(new Date(e.endDate ?? e.startDate)) >= today)
+  const current = docs.filter((e) => budapestDay(new Date(e.startDate)) <= today)
+  const upcoming = docs.filter((e) => budapestDay(new Date(e.startDate)) > today)
 
   return (
     <>

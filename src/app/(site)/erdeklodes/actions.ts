@@ -4,6 +4,7 @@ import config from '@payload-config'
 import { headers } from 'next/headers'
 import { getPayload } from 'payload'
 
+import { errorSummary } from '@/lib/errors'
 import { sendInquiryEmail, staffEmail } from '@/lib/mail'
 
 import { findInquiryTarget } from './lookup'
@@ -77,7 +78,7 @@ export async function submitInquiry(
       overrideAccess: true,
     })
   } catch (err) {
-    payload.logger.error({ err }, 'Inquiry could not be saved')
+    payload.logger.error({ err: errorSummary(err) }, 'Inquiry could not be saved')
     return { status: 'error', message: 'Nem sikerült elküldeni. Próbáld újra később.', values }
   }
 
@@ -115,7 +116,7 @@ export async function submitInquiry(
         overrideAccess: true,
       })
     } catch (err) {
-      payload.logger.error({ err, inquiry: inquiry.id }, 'Inquiry was emailed, but marking it delivered failed')
+      payload.logger.error({ err: errorSummary(err), inquiry: inquiry.id }, 'Inquiry was emailed, but marking it delivered failed')
     }
   }
 

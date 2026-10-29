@@ -96,4 +96,33 @@ describe('access control', () => {
       }),
     ).rejects.toThrow()
   })
+
+  it('visitors see only published artists of an exhibition, and no aiTagged flag', async () => {
+    const byStatus = async (status: 'published' | 'pending') =>
+      (await payload.find({ collection: 'artists', where: { status: { equals: status } }, limit: 1, depth: 0 }))
+        .docs[0]
+    const published = await byStatus('published')
+    const pending = await byStatus('pending')
+    const venue = (await payload.find({ collection: 'venues', limit: 1 })).docs[0]
+    const exhibition = await payload.create({
+      collection: 'exhibitions',
+      data: {
+        title: 'Teszt kiállítás (api.int)',
+        venue: venue.id,
+        artists: [published.id, pending.id],
+        startDate: new Date().toISOString(),
+      },
+    })
+    try {
+      const anon = await payload.findByID({ collection: 'exhibitions', id: exhibition.id, depth: 0, overrideAccess: false })
+      expect(anon.artists).toEqual([published.id])
+      const staff = await payload.findByID({ collection: 'exhibitions', id: exhibition.id, depth: 0 })
+      expect(staff.artists).toEqual([published.id, pending.id])
+    } finally {
+      await payload.delete({ collection: 'exhibitions', id: exhibition.id })
+    }
+
+    const anonArtist = await payload.findByID({ collection: 'artists', id: published.id, overrideAccess: false })
+    expect(anonArtist.aiTagged).toBeUndefined()
+  })
 })

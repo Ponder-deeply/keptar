@@ -9,7 +9,7 @@ import config from '@/payload.config'
 /** Removes one work from the logged-in user's saved list. */
 export async function removeSaved(formData: FormData): Promise<void> {
   const workId = Number(formData.get('work'))
-  if (!Number.isInteger(workId)) return
+  if (!Number.isInteger(workId) || workId <= 0) return
 
   const payload = await getPayload({ config: await config })
   const { user } = await payload.auth({ headers: await getHeaders() })

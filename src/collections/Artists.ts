@@ -92,6 +92,7 @@ export const Artists: CollectionConfig = {
         position: 'sidebar',
         description: 'A címkéző szkript állítja be. Ellenőrzés után vedd ki a pipát.',
       },
+      access: { read: staffOnlyField },
     },
     {
       name: 'claimedBy',
