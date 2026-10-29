@@ -5,11 +5,11 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { en } from '@payloadcms/translations/languages/en'
 import { hu } from '@payloadcms/translations/languages/hu'
 import path from 'path'
-import { buildConfig } from 'payload'
+import { buildConfig, type SanitizedConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
-import { isStaff } from './access/roles'
+import { isStaff, staffOnly } from './access/roles'
 import { Artists } from './collections/Artists'
 import { Exhibitions } from './collections/Exhibitions'
 import { Inquiries } from './collections/Inquiries'
@@ -39,6 +39,10 @@ const db = /^postgres(ql)?:\/\//.test(databaseURL)
   : sqliteAdapter({ client: { url: databaseURL } })
 
 // Without RESEND_API_KEY, outgoing emails are printed to the server log (dev mode).
+// In production that would put working login links in the logs, so refuse to start.
+if (process.env.NODE_ENV === 'production' && !process.env.RESEND_API_KEY && process.env.NEXT_PHASE !== 'phase-production-build') {
+  throw new Error('RESEND_API_KEY is required in production (otherwise magic links are written to the log).')
+}
 const email = process.env.RESEND_API_KEY
   ? resendAdapter({
       apiKey: process.env.RESEND_API_KEY,
@@ -47,7 +51,7 @@ const email = process.env.RESEND_API_KEY
     })
   : consoleEmailAdapter
 
-export default buildConfig({
+const config = buildConfig({
   serverURL: serverURL(),
   admin: {
     user: Users.slug,
@@ -82,3 +86,24 @@ export default buildConfig({
   sharp,
   plugins: [],
 })
+
+/**
+ * Payload adds two internal entities whose default access is "any logged-in user",
+ * and every visitor can become one through the magic link:
+ * - `payload-jobs-stats` (added because a task has a `schedule`) stores when the
+ *   purge last ran; writing a far-future date there would stop the purge for good.
+ * - `payload-locked-documents` reveals which (possibly unpublished) documents staff
+ *   have open, and lets anyone create or delete locks.
+ * Both are only used by the admin and the job runner, so restrict them to staff.
+ */
+function restrictInternalEntities(sanitized: SanitizedConfig): SanitizedConfig {
+  const stats = sanitized.globals.find((g) => g.slug === 'payload-jobs-stats')
+  if (stats) stats.access = { ...stats.access, read: staffOnly, update: staffOnly, readVersions: staffOnly }
+  const locks = sanitized.collections.find((c) => c.slug === 'payload-locked-documents')
+  if (locks) {
+    locks.access = { ...locks.access, create: staffOnly, read: staffOnly, update: staffOnly, delete: staffOnly }
+  }
+  return sanitized
+}
+
+export default config.then(restrictInternalEntities)

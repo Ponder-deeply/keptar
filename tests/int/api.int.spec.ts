@@ -33,20 +33,67 @@ describe('access control', () => {
     await expect(payload.find({ collection: 'users', overrideAccess: false })).rejects.toThrow()
   })
 
-  it('a right swipe saves the work to the user', async () => {
-    const { docs: users } = await payload.find({
-      collection: 'users',
-      where: { email: { equals: 'latogato@keptar.local' } },
+  const visitor = async () => {
+    const { docs } = await payload.find({ collection: 'users', where: { email: { equals: 'latogato@keptar.local' } } })
+    return docs[0]
+  }
+
+  it('logged-in visitors cannot touch the job stats or document locks', async () => {
+    const user = await visitor()
+    await expect(
+      payload.findGlobal({ slug: 'payload-jobs-stats' as never, overrideAccess: false, user }),
+    ).rejects.toThrow()
+    await expect(
+      payload.updateGlobal({ slug: 'payload-jobs-stats' as never, data: {}, overrideAccess: false, user }),
+    ).rejects.toThrow()
+    await expect(
+      payload.find({ collection: 'payload-locked-documents', overrideAccess: false, user }),
+    ).rejects.toThrow()
+  })
+
+  it('a right swipe saves the work to the user, as the requester only', async () => {
+    const user = await visitor()
+    const admin = (await payload.find({ collection: 'users', where: { email: { equals: 'admin@keptar.local' } } }))
+      .docs[0]
+    const savedBefore = (user.saved ?? []).map((w) => (typeof w === 'object' ? w.id : w))
+    const { docs: works } = await payload.find({
+      collection: 'works',
+      where: { id: { not_in: savedBefore } },
+      overrideAccess: false,
+      limit: 1,
     })
-    const user = users[0]
-    const { docs: works } = await payload.find({ collection: 'works', overrideAccess: false, limit: 1 })
-    await payload.create({
+    const swipe = await payload.create({
       collection: 'swipes',
-      data: { user: user.id, work: works[0].id, direction: 'right' },
+      // `user` is overwritten with the requester.
+      data: { user: admin.id, work: works[0].id, direction: 'right' },
       user,
       overrideAccess: false,
     })
-    const after = await payload.findByID({ collection: 'users', id: user.id, depth: 0 })
-    expect(after.saved).toContain(works[0].id)
+    try {
+      expect(typeof swipe.user === 'object' ? swipe.user.id : swipe.user).toBe(user.id)
+      const after = await payload.findByID({ collection: 'users', id: user.id, depth: 0 })
+      expect(after.saved).toContain(works[0].id)
+    } finally {
+      await payload.delete({ collection: 'swipes', id: swipe.id })
+      await payload.update({ collection: 'users', id: user.id, data: { saved: savedBefore } })
+    }
+  })
+
+  it('swipes on works of unpublished artists are rejected', async () => {
+    const user = await visitor()
+    const { docs } = await payload.find({
+      collection: 'works',
+      where: { 'artist.status': { not_equals: 'published' } },
+      limit: 1,
+    })
+    expect(docs.length).toBe(1)
+    await expect(
+      payload.create({
+        collection: 'swipes',
+        data: { user: user.id, work: docs[0].id, direction: 'right' },
+        user,
+        overrideAccess: false,
+      }),
+    ).rejects.toThrow()
   })
 })
