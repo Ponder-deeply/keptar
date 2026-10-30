@@ -1,0 +1,48 @@
+---
+layout: default
+nav: muveszek
+---
+{% assign artist = page %}
+<article>
+  <header class="profile-header">
+    <h1>{{ artist.name | escape }}</h1>
+    <a href="https://www.instagram.com/{{ artist.handle }}/" target="_blank" rel="noopener noreferrer">@{{ artist.handle }}</a>
+  </header>
+
+  <dl class="profile-meta">
+    {% if artist.medium.size > 0 %}<dt>Médium</dt><dd>{{ artist.medium | join: ", " | escape }}</dd>{% endif %}
+    {% if artist.technique.size > 0 %}<dt>Technika</dt><dd>{{ artist.technique | join: ", " | escape }}</dd>{% endif %}
+    {% if artist.region %}<dt>Régió</dt><dd>{{ artist.region | escape }}</dd>{% endif %}
+    {% if artist.city %}<dt>Város</dt><dd>{{ artist.city | escape }}</dd>{% endif %}
+    {% if artist.website %}
+      <dt>Weboldal</dt>
+      <dd><a href="{{ artist.website | escape }}" target="_blank" rel="noopener noreferrer">{{ artist.website | remove_first: "https://" | remove_first: "http://" | escape }}</a></dd>
+    {% endif %}
+  </dl>
+
+  {% if artist.bio %}<p class="profile-bio">{{ artist.bio | escape | newline_to_br }}</p>{% endif %}
+
+  <div class="profile-actions">
+    {% include inquiry-link.html handle=artist.handle %}
+  </div>
+
+  <h2>Művek</h2>
+  {% if artist.works.size == 0 %}
+    <p class="muted">Még nincs feltöltött mű.</p>
+  {% else %}
+    <ul class="works">
+      {% for work in artist.works %}
+        <li>{% include work.html work=work artist=artist %}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <p class="opt-out">
+    {% if site.live_url != "" %}
+      <a href="{{ site.live_url | escape }}/muveszek/{{ artist.handle }}/profil">Ez az én profilom / távolítsd el</a>
+    {% else %}
+      {% assign subject = "Profil: @" | append: artist.handle %}
+      <a href="mailto:{{ site.contact_email | escape }}?subject={{ subject | url_encode }}">Ez az én profilom / távolítsd el</a>
+    {% endif %}
+  </p>
+</article>

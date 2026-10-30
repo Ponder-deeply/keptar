@@ -43,6 +43,9 @@ Vision: Dimitrij Vincze. Builder/maintainer: the user, with AI.
   exhibitions). Users are upserted: `admin@keptar.local` / `keptar-admin`,
   `kurator@keptar.local` / `keptar-kurator`, `latogato@keptar.local` / `keptar-latogato`.
 - `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test:int` (needs a seeded DB).
+- `pnpm export:jekyll --live-url <url> | --contact-email <email> [--out <dir>] [--baseurl /repo]`:
+  write the public content (anonymous-visitor view) as a static Jekyll site for
+  GitHub Pages, default `jekyll-site/`. Template: `scripts/jekyll-template/`.
 - After a schema change: `pnpm generate:types` (and `pnpm generate:importmap`
   if admin components changed).
 

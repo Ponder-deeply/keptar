@@ -1,0 +1,6 @@
+{% if site.live_url != "" %}
+  <a class="button" href="{{ site.live_url | escape }}/erdeklodes?muvesz={{ include.handle }}">Érdeklődöm</a>
+{% else %}
+  {% assign subject = "Érdeklődés: @" | append: include.handle %}
+  <a class="button" href="mailto:{{ site.contact_email | escape }}?subject={{ subject | url_encode }}">Érdeklődöm</a>
+{% endif %}

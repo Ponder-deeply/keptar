@@ -1,0 +1,44 @@
+---
+layout: default
+title: Művészek
+nav: muveszek
+---
+{% assign artists = site.artists | sort: "order" %}
+<h1>Művészek</h1>
+<p class="intro">Kortárs magyar képzőművészek, {{ artists.size }} profil.</p>
+
+{% comment %} Shown and wired up by assets/js/static.js; without JS the full list stays visible. {% endcomment %}
+<form class="filters" data-artist-filters hidden>
+  <label>Médium
+    <select name="medium">
+      <option value="">Mind</option>
+      {% for m in site.data.filters.medium %}<option>{{ m | escape }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Régió
+    <select name="region">
+      <option value="">Mind</option>
+      {% for r in site.data.filters.region %}<option>{{ r | escape }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+<p class="muted" data-artist-empty hidden>Nincs a szűrésnek megfelelő művész.</p>
+
+<div class="grid">
+  {% for artist in artists %}
+    <article class="artist-card" data-medium="{{ artist.medium | join: '|' | escape }}" data-region="{{ artist.region | escape }}">
+      <a href="{{ artist.url | relative_url }}" class="artist-card__link">
+        {% if artist.cover %}
+          <img src="{{ artist.cover.src | relative_url }}" alt="" width="{{ artist.cover.width }}" height="{{ artist.cover.height }}" loading="lazy">
+        {% else %}
+          <div class="artist-card__placeholder" aria-hidden="true"></div>
+        {% endif %}
+        <h3 class="artist-card__name">{{ artist.name | escape }}</h3>
+      </a>
+      <p class="artist-card__handle">@{{ artist.handle }}</p>
+      {% assign tags = artist.medium | concat: artist.technique %}
+      {% if tags.size > 0 %}<p class="artist-card__tags">{{ tags | join: " · " | escape }}</p>{% endif %}
+      {% if artist.place != "" %}<p class="artist-card__place">{{ artist.place | escape }}</p>{% endif %}
+    </article>
+  {% endfor %}
+</div>

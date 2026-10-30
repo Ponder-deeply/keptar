@@ -1,0 +1,25 @@
+{% assign work = include.work %}
+{% assign artist = include.artist %}
+{% if work.ig %}{% assign credit_url = work.ig %}{% else %}{% assign credit_url = "https://www.instagram.com/" | append: artist.handle | append: "/" %}{% endif %}
+<figure class="work">
+  <div class="work__media">
+    {% if work.image %}
+      <img src="{{ work.image.src | relative_url }}" alt="{{ work.image.alt | default: work.title | escape }}" width="{{ work.image.width }}" height="{{ work.image.height }}" loading="lazy">
+    {% elsif work.ig %}
+      {% comment %} assets/js/static.js swaps this link for the official embed when scrolled near. {% endcomment %}
+      <div class="ig-embed" data-ig-permalink="{{ work.ig }}">
+        <a class="ig-embed__fallback" href="{{ work.ig }}" target="_blank" rel="noopener noreferrer">
+          <span class="ig-embed__label">Instagram-poszt megnyitása</span>
+          <span class="ig-embed__note">@{{ artist.handle }}</span>
+        </a>
+      </div>
+    {% endif %}
+  </div>
+  <figcaption class="work__caption">
+    <span class="work__title">{{ work.title | escape }}{% if work.year %}, {{ work.year }}{% endif %}</span>
+    <span class="work__credit">
+      {{ artist.name | escape }} ·
+      <a href="{{ credit_url }}" target="_blank" rel="noopener noreferrer">@{{ artist.handle }} az Instagramon</a>
+    </span>
+  </figcaption>
+</figure>

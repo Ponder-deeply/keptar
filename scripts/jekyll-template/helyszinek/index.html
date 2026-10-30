@@ -1,0 +1,20 @@
+---
+layout: default
+title: Helyszínek
+nav: helyszinek
+---
+<h1>Helyszínek</h1>
+{% if site.data.venues.size == 0 %}<p>Még nincs helyszín.</p>{% endif %}
+<ul class="venue-list">
+  {% for v in site.data.venues %}
+    <li class="venue">
+      <h3>{{ v.name | escape }}</h3>
+      <p class="muted">{{ v.type }}</p>
+      {% if v.address != "" %}<p>{{ v.address | escape }}</p>{% endif %}
+      <p>
+        <a href="{{ v.map }}" target="_blank" rel="noopener noreferrer">Térképen</a>
+        {% if v.website %} · <a href="{{ v.website | escape }}" target="_blank" rel="noopener noreferrer">Weboldal</a>{% endif %}
+      </p>
+    </li>
+  {% endfor %}
+</ul>

@@ -1,0 +1,18 @@
+/* Additions for the static (GitHub Pages) copy; site.css is the live site's stylesheet. */
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filters[hidden],
+.artist-card[hidden],
+[data-artist-empty][hidden] {
+  display: none;
+}
+
+.exhibition img {
+  max-width: 24rem;
+  margin: 0.5rem 0;
+}

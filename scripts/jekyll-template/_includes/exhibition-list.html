@@ -1,0 +1,17 @@
+<ul class="exhibition-list">
+  {% for e in include.items %}
+    <li class="exhibition">
+      <h3>{{ e.title | escape }}</h3>
+      {% if e.image %}<img src="{{ e.image.src | relative_url }}" alt="{{ e.image.alt | escape }}" width="{{ e.image.width }}" height="{{ e.image.height }}" loading="lazy">{% endif %}
+      <p><time datetime="{{ e.start }}">{{ e.date }}</time></p>
+      {% if e.venue %}<p>{{ e.venue | escape }}</p>{% endif %}
+      {% if e.artists.size > 0 %}
+        <p>Művészek:
+          {% for a in e.artists %}{% assign href = "/muveszek/" | append: a.handle | append: "/" %}<a href="{{ href | relative_url }}">{{ a.name | escape }}</a>{% unless forloop.last %}, {% endunless %}{% endfor %}
+        </p>
+      {% endif %}
+      {% if e.description %}<p class="muted">{{ e.description | escape }}</p>{% endif %}
+      {% if e.url %}<p><a href="{{ e.url | escape }}" target="_blank" rel="noopener noreferrer">Részletek</a></p>{% endif %}
+    </li>
+  {% endfor %}
+</ul>

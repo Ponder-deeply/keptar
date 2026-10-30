@@ -1,0 +1,22 @@
+---
+layout: default
+title: Kiállítások
+nav: kiallitasok
+---
+{% assign current = site.data.exhibitions | where: "when", "current" %}
+{% assign upcoming = site.data.exhibitions | where: "when", "upcoming" %}
+<h1>Kiállítások</h1>
+{% if site.data.exhibitions.size == 0 %}<p>Jelenleg nincs meghirdetett kiállítás.</p>{% endif %}
+{% if current.size > 0 %}
+  <section aria-labelledby="most">
+    <h2 id="most">Most látható</h2>
+    {% include exhibition-list.html items=current %}
+  </section>
+{% endif %}
+{% if upcoming.size > 0 %}
+  <section aria-labelledby="hamarosan">
+    <h2 id="hamarosan">Hamarosan</h2>
+    {% include exhibition-list.html items=upcoming %}
+  </section>
+{% endif %}
+<p><a href="{{ '/helyszinek/' | relative_url }}">Helyszínek</a></p>

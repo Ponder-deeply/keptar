@@ -58,3 +58,6 @@ node_modules/
 # Claude Code agent worktrees
 /.claude/worktrees/
 /.claude/settings.local.json
+
+# Static GitHub Pages copy (pnpm export:jekyll)
+/jekyll-site/
