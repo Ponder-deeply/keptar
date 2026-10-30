@@ -84,7 +84,7 @@ metadata only (no images; the site embeds posts), in small batches:
 pipx install instaloader
 instaloader --login <képtár-account> \
   --no-pictures --no-videos --no-video-thumbnails --no-profile-pic \
-  --no-captions --no-compress-json --fast-update \
+  --no-captions --no-compress-json --latest-stamps ig-export/latest-stamps.ini \
   --dirname-pattern 'ig-export/{profile}' <handle> <handle> …
 ```
 
@@ -92,7 +92,8 @@ Anonymous runs are mostly blocked by Instagram now (401 / "Please wait a few
 minutes"), hence `--login`. Use the Képtár account, never Dimitrij's: a
 throwaway-looking burst of requests can get the logged-in account
 checkpointed. If instaloader reports a checkpoint or 429, stop and continue
-another day; `--fast-update` skips what is already downloaded.
+another day; `--latest-stamps` then fetches only posts newer than the last
+run (`--fast-update` can't be combined with `--no-pictures`).
 
 For the whole following list, `pnpm instaloader:batches` runs that command in
 sections with a pause between them, and stops on a fatal error with the

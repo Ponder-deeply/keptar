@@ -6,15 +6,18 @@
 //     [--out ig-export] [--start <k>] [--instaloader <path>] [--dry-run]
 //
 // Handles are split in file order into n near-equal sections. Each section is
-// one instaloader run (metadata only, --fast-update, into <out>/{profile}).
+// one instaloader run (metadata only, into <out>/{profile}).
 // instaloader's exit code 1 (some profiles failed, e.g. renamed) continues;
 // anything else (login failure, checkpoint, Ctrl-C) stops and prints the
-// --start value to resume from. Rerunning a section is cheap: --fast-update
-// skips what is already downloaded.
+// --start value to resume from. Rerunning a section is cheap:
+// <out>/latest-stamps.ini records each profile's newest post, and only newer
+// posts are fetched.
 //
 // Then: pnpm import:instagram <out> --update-posts
 import { spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 
 import { parseArgs } from './lib/args'
@@ -85,7 +88,10 @@ const instaloaderArgs = (section: string[]) => [
   '--no-profile-pic',
   '--no-captions',
   '--no-compress-json',
-  '--fast-update',
+  // Resume support. --fast-update would be the usual choice, but instaloader
+  // refuses it together with --no-pictures.
+  '--latest-stamps',
+  path.join(out, 'latest-stamps.ini'),
   '--dirname-pattern',
   `${out}/{profile}`,
   '--',
@@ -99,6 +105,19 @@ const run = (section: string[]) =>
     child.on('error', reject)
     child.on('exit', (code, signal) => resolve(code ?? (signal ? 130 : 1)))
   })
+
+// Without a saved session instaloader prompts for the password in every
+// section, and a failed prompt exits with 1, which looks like a non-fatal error.
+if (login && !dryRun) {
+  const configDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
+  const session = path.join(configDir, 'instaloader', `session-${login}`)
+  try {
+    await fs.access(session)
+  } catch {
+    console.error(`No instaloader session for ${login} (${session}). Log in once first: ${bin} --login ${login}`)
+    process.exit(1)
+  }
+}
 
 console.log(
   `${handles.length} handles in ${sections.length} sections ` +
