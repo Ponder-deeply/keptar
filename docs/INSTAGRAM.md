@@ -94,6 +94,14 @@ throwaway-looking burst of requests can get the logged-in account
 checkpointed. If instaloader reports a checkpoint or 429, stop and continue
 another day; `--fast-update` skips what is already downloaded.
 
+For the whole following list, `pnpm instaloader:batches` runs that command in
+sections with a pause between them, and stops on a fatal error with the
+`--start` value to resume from:
+
+```
+pnpm instaloader:batches following.json --sections 10 --delay 30m --login <képtár-account> --dry-run
+```
+
 Then import the directory (it is detected as instaloader by being a directory):
 
 ```
