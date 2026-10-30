@@ -1,0 +1,11 @@
+{
+    "instaloader": {
+        "node_type": "Post",
+        "version": "4.16"
+    },
+    "node": {
+        "__typename": "GraphVideo",
+        "code": "FAKEmid01",
+        "date": 1780308000
+    }
+}

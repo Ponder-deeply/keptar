@@ -66,6 +66,11 @@ Pick the most mainstream stack, so that AI tools know it well:
    count as newest. Instagram's Terms restrict automated collection: keep runs
    small and slow, and stop on a challenge. The opt-out link (point 5) matters
    more for these profiles.
+   An **instaloader** download (a directory of metadata-only JSON, see
+   `docs/INSTAGRAM.md`) is read the same way (`scripts/lib/instaloader-export.ts`),
+   with posts ordered by date. `--update-posts` now also fills blank name
+   (still equal to the handle), bio and website of existing artists; it never
+   overwrites curator edits. Same Terms caveat; no images are downloaded.
 4. **Embed:** Instagram's official embed (blockquote + `embed.js`) shows a post
    with credit and a link back, and needs no token. Limitations: no deep zoom,
    Instagram's frame around the image, and slower page loads. So the gallery

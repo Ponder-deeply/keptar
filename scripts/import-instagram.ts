@@ -1,7 +1,7 @@
 // Import Dimitrij's Instagram following list as pending artists, with all their
 // posts as Instagram-embed works.
 //
-//   pnpm import:instagram <path/to/following.json | inscrape-export.json> [--dry-run] [--handles-only] [--update-posts]
+//   pnpm import:instagram <following.json | inscrape-export.json | instaloader-dir/> [--dry-run] [--handles-only] [--update-posts]
 //
 // One `artists` record per followed account: status "pending". By default each
 // new artist's name, bio, website and every post link come from the Instagram
@@ -15,10 +15,16 @@
 // token is needed. Accounts inscrape hasn't scraped (or found private, missing
 // or empty) are created handle-only; import a later run with --update-posts.
 //
+// An instaloader download (a directory, see scripts/lib/instaloader-export.ts)
+// is read the same way: name, bio, website and post links come from its
+// metadata JSON, newest post first by date.
+//
 // --handles-only  skip the API: handle-only artists, no works.
 // --update-posts  also add posts not yet stored to artists already in the
-//                 database (pending or published only). Their other fields are
-//                 never touched, because the curator may have edited them.
+//                 database (pending or published only), and fill in their
+//                 name (if it is still the handle), bio and website when
+//                 blank. Filled fields are never overwritten, because the
+//                 curator may have edited them.
 //
 // Idempotent: existing handles are not recreated, and a post URL already stored
 // for an artist is not added again. If Meta rate-limits us the run stops early;
@@ -30,6 +36,7 @@ import { parseIgPermalink } from '../src/components/igPermalink'
 import config from '../src/payload.config'
 import { parseArgs } from './lib/args'
 import { isInscrapeExport, parseInscrapeExport } from './lib/inscrape-export'
+import { parseInstaloaderExport, readInstaloaderExport } from './lib/instaloader-export'
 import { parseFollowingExport } from './lib/instagram-export'
 import {
   fetchProfile,
@@ -40,7 +47,7 @@ import {
 } from './lib/instagram-graph'
 
 const USAGE =
-  'Usage: pnpm import:instagram <path/to/following.json | inscrape-export.json> [--dry-run] [--handles-only] [--update-posts]'
+  'Usage: pnpm import:instagram <following.json | inscrape-export.json | instaloader-dir/> [--dry-run] [--handles-only] [--update-posts]'
 const FLAGS = ['dry-run', 'handles-only', 'update-posts']
 
 const args = parseArgs(process.argv.slice(2))
@@ -62,18 +69,24 @@ if (handlesOnly && updatePosts) {
 
 type Account = { handle: string; status?: string; profile?: IgProfile }
 let parsed: { accounts: Account[]; duplicates: string[]; invalid: { index: number; reason: string }[] }
-let fromInscrape = false
+/** Set when profiles and posts come from the file (no Graph API calls). */
+let fileSource: 'inscrape' | 'instaloader' | undefined
 try {
-  const data: unknown = JSON.parse(await fs.readFile(file, 'utf8'))
-  fromInscrape = isInscrapeExport(data)
-  parsed = fromInscrape ? parseInscrapeExport(data) : parseFollowingExport(data)
+  if ((await fs.stat(file)).isDirectory()) {
+    fileSource = 'instaloader'
+    parsed = parseInstaloaderExport(await readInstaloaderExport(file))
+  } else {
+    const data: unknown = JSON.parse(await fs.readFile(file, 'utf8'))
+    if (isInscrapeExport(data)) fileSource = 'inscrape'
+    parsed = fileSource ? parseInscrapeExport(data) : parseFollowingExport(data)
+  }
 } catch (err) {
   console.error(`Cannot read ${file}: ${(err as Error).message}`)
   process.exit(1)
 }
 
-const graph = handlesOnly || fromInscrape ? undefined : graphConfigFromEnv()
-if (!handlesOnly && !fromInscrape && !graph) {
+const graph = handlesOnly || fileSource ? undefined : graphConfigFromEnv()
+if (!handlesOnly && !fileSource && !graph) {
   console.error(
     'Fetching posts needs INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID (see .env.example).\n' +
       'Run with --handles-only to import just the handles.',
@@ -91,7 +104,7 @@ const existing = new Map(
       where: { handle: { in: parsed.accounts.map((a) => a.handle) } },
       pagination: false,
       depth: 0,
-      select: { handle: true, status: true },
+      select: { handle: true, status: true, name: true, bio: true, website: true },
       overrideAccess: true,
     })
   ).docs.map((d) => [d.handle, d]),
@@ -100,6 +113,7 @@ const existing = new Map(
 const created: string[] = []
 const skippedExisting: string[] = []
 const personal: { handle: string; status?: string }[] = []
+const filled: string[] = []
 const failed: { handle: string; error: string }[] = []
 let worksAdded = 0
 let rateLimited: string | undefined
@@ -141,8 +155,8 @@ for (const account of parsed.accounts) {
     continue
   }
   try {
-    const profile = !withPosts ? undefined : fromInscrape ? account.profile : await fetchProfile(handle, graph!)
-    if (withPosts && !profile) personal.push({ handle, status: account.status })
+    const profile = !withPosts ? undefined : fileSource ? account.profile : await fetchProfile(handle, graph!)
+    if (withPosts && !profile?.posts.length) personal.push({ handle, status: account.status })
 
     let artistId = current?.id
     if (!current) {
@@ -161,6 +175,19 @@ for (const account of parsed.accounts) {
         artistId = artist.id
       }
       created.push(handle)
+    } else if (profile) {
+      // Only blanks: a handle-only import leaves name = handle and no bio/website.
+      const data = {
+        ...(profile.name && (!current.name || current.name === handle) && { name: profile.name }),
+        ...(profile.biography && !current.bio?.trim() && { bio: profile.biography }),
+        ...(profile.website && !current.website?.trim() && { website: profile.website }),
+      }
+      if (Object.keys(data).length) {
+        if (!dryRun) {
+          await payload.update({ collection: 'artists', id: current.id, data, overrideAccess: true })
+        }
+        filled.push(handle)
+      }
     }
     if (profile) worksAdded += await addWorks(artistId, profile.posts)
   } catch (err) {
@@ -177,7 +204,10 @@ console.log(`\nInstagram import${dryRun ? ' (dry run, nothing written)' : ''}: $
 console.log(`  ${verb}:  ${created.length}${created.length ? `  (${created.join(', ')})` : ''}`)
 if (withPosts) {
   console.log(`  works ${dryRun ? 'to add' : 'added'}: ${worksAdded}`)
-  if (fromInscrape) {
+  if (filled.length) {
+    console.log(`  profile fields ${dryRun ? 'to fill' : 'filled'}: ${filled.length}  (${filled.join(', ')})`)
+  }
+  if (fileSource) {
     const byStatus = new Map<string, typeof personal>()
     for (const p of personal) byStatus.set(p.status ?? 'pending', [...(byStatus.get(p.status ?? 'pending') ?? []), p])
     console.log(`  no posts in the file: ${personal.length}`)
