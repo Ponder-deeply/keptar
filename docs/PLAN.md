@@ -55,6 +55,17 @@ Pick the most mainstream stack, so that AI tools know it well:
    handle-only and their post URLs are pasted into the admin by hand.
    `--handles-only` skips the API; `--update-posts` adds new posts to artists
    already imported.
+   **Since 2026-10-30 (supersedes "no scraping"):** the same command also reads
+   an **inscrape** export (`~/Projects/inscrape`, a browser extension that
+   visits public profiles slowly in our own browser and collects post links).
+   It is detected by `"source": "inscrape"`, needs no Meta token, and covers
+   personal accounts that the Graph API can't see. Name, bio and post links come
+   from the file (`scripts/lib/inscrape-export.ts`); accounts inscrape hasn't
+   scraped yet are created handle-only, and a later run imported with
+   `--update-posts` fills in their posts. Grid order is kept, so pinned posts
+   count as newest. Instagram's Terms restrict automated collection: keep runs
+   small and slow, and stop on a challenge. The opt-out link (point 5) matters
+   more for these profiles.
 4. **Embed:** Instagram's official embed (blockquote + `embed.js`) shows a post
    with credit and a link back, and needs no token. Limitations: no deep zoom,
    Instagram's frame around the image, and slower page loads. So the gallery
@@ -242,7 +253,7 @@ port (`/api/users/first-register` is open while `users` is empty).
   with `pg_dump` cron. Only after the user provides the server and domain,
   because this is outward-facing.
 
-**Real data, by the user and Dimitrij:** run the IG export, the import script,
+**Real data, by the user and Dimitrij:** run the IG export (or inscrape), the import script,
 the tagging script, and curation in the admin.
 
 ## Verification

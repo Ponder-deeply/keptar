@@ -1,7 +1,7 @@
 // Import Dimitrij's Instagram following list as pending artists, with all their
 // posts as Instagram-embed works.
 //
-//   pnpm import:instagram <path/to/following.json> [--dry-run] [--handles-only] [--update-posts]
+//   pnpm import:instagram <path/to/following.json | inscrape-export.json> [--dry-run] [--handles-only] [--update-posts]
 //
 // One `artists` record per followed account: status "pending". By default each
 // new artist's name, bio, website and every post link come from the Instagram
@@ -9,6 +9,11 @@
 // INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID). Each post becomes a `works`
 // record with source "instagram". Personal accounts are invisible to that API,
 // so they are created with the handle only and their posts are added by hand.
+//
+// An inscrape export (~/Projects/inscrape, detected by its "source" field) is
+// read instead of the API: name, bio and post links come from the file, and no
+// token is needed. Accounts inscrape hasn't scraped (or found private, missing
+// or empty) are created handle-only; import a later run with --update-posts.
 //
 // --handles-only  skip the API: handle-only artists, no works.
 // --update-posts  also add posts not yet stored to artists already in the
@@ -24,11 +29,18 @@ import { getPayload } from 'payload'
 import { parseIgPermalink } from '../src/components/igPermalink'
 import config from '../src/payload.config'
 import { parseArgs } from './lib/args'
+import { isInscrapeExport, parseInscrapeExport } from './lib/inscrape-export'
 import { parseFollowingExport } from './lib/instagram-export'
-import { fetchProfile, graphConfigFromEnv, RateLimitError, type IgPost } from './lib/instagram-graph'
+import {
+  fetchProfile,
+  graphConfigFromEnv,
+  RateLimitError,
+  type IgPost,
+  type IgProfile,
+} from './lib/instagram-graph'
 
 const USAGE =
-  'Usage: pnpm import:instagram <path/to/following.json> [--dry-run] [--handles-only] [--update-posts]'
+  'Usage: pnpm import:instagram <path/to/following.json | inscrape-export.json> [--dry-run] [--handles-only] [--update-posts]'
 const FLAGS = ['dry-run', 'handles-only', 'update-posts']
 
 const args = parseArgs(process.argv.slice(2))
@@ -43,26 +55,32 @@ if (!file || unknown.length || args.positional.length > 1) {
   process.exit(1)
 }
 
-const graph = handlesOnly ? undefined : graphConfigFromEnv()
-if (!handlesOnly && !graph) {
+if (handlesOnly && updatePosts) {
+  console.error('--update-posts adds posts; it cannot be combined with --handles-only.')
+  process.exit(1)
+}
+
+type Account = { handle: string; status?: string; profile?: IgProfile }
+let parsed: { accounts: Account[]; duplicates: string[]; invalid: { index: number; reason: string }[] }
+let fromInscrape = false
+try {
+  const data: unknown = JSON.parse(await fs.readFile(file, 'utf8'))
+  fromInscrape = isInscrapeExport(data)
+  parsed = fromInscrape ? parseInscrapeExport(data) : parseFollowingExport(data)
+} catch (err) {
+  console.error(`Cannot read ${file}: ${(err as Error).message}`)
+  process.exit(1)
+}
+
+const graph = handlesOnly || fromInscrape ? undefined : graphConfigFromEnv()
+if (!handlesOnly && !fromInscrape && !graph) {
   console.error(
     'Fetching posts needs INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_USER_ID (see .env.example).\n' +
       'Run with --handles-only to import just the handles.',
   )
   process.exit(1)
 }
-if (handlesOnly && updatePosts) {
-  console.error('--update-posts needs the API; it cannot be combined with --handles-only.')
-  process.exit(1)
-}
-
-let parsed
-try {
-  parsed = parseFollowingExport(JSON.parse(await fs.readFile(file, 'utf8')))
-} catch (err) {
-  console.error(`Cannot read ${file}: ${(err as Error).message}`)
-  process.exit(1)
-}
+const withPosts = !handlesOnly
 
 const payload = await getPayload({ config })
 
@@ -81,7 +99,7 @@ const existing = new Map(
 
 const created: string[] = []
 const skippedExisting: string[] = []
-const personal: string[] = []
+const personal: { handle: string; status?: string }[] = []
 const failed: { handle: string; error: string }[] = []
 let worksAdded = 0
 let rateLimited: string | undefined
@@ -101,7 +119,8 @@ async function addWorks(artistId: number | undefined, posts: IgPost[]): Promise<
     // Compare canonical permalinks: a hand-pasted URL may differ (no www, ?igsh=…).
     known = new Set(docs.flatMap((d) => parseIgPermalink(d.igUrl) ?? []))
   }
-  // Graph API returns newest first; create oldest first so "newest" sorting matches Instagram.
+  // Both sources list newest first (inscrape: pinned posts on top); create oldest
+  // first so "newest" sorting matches Instagram.
   const fresh = posts.filter((p) => !known.has(parseIgPermalink(p.url) ?? p.url)).reverse()
   if (dryRun || artistId === undefined) return fresh.length
   for (const post of fresh) {
@@ -114,15 +133,16 @@ async function addWorks(artistId: number | undefined, posts: IgPost[]): Promise<
   return fresh.length
 }
 
-for (const { handle } of parsed.accounts) {
+for (const account of parsed.accounts) {
+  const { handle } = account
   const current = existing.get(handle)
   if (current && !(updatePosts && ['pending', 'published'].includes(current.status))) {
     skippedExisting.push(handle)
     continue
   }
   try {
-    const profile = graph ? await fetchProfile(handle, graph) : undefined
-    if (graph && !profile) personal.push(handle)
+    const profile = !withPosts ? undefined : fromInscrape ? account.profile : await fetchProfile(handle, graph!)
+    if (withPosts && !profile) personal.push({ handle, status: account.status })
 
     let artistId = current?.id
     if (!current) {
@@ -155,12 +175,21 @@ for (const { handle } of parsed.accounts) {
 const verb = dryRun ? 'would create' : 'created'
 console.log(`\nInstagram import${dryRun ? ' (dry run, nothing written)' : ''}: ${file}`)
 console.log(`  ${verb}:  ${created.length}${created.length ? `  (${created.join(', ')})` : ''}`)
-if (graph) {
+if (withPosts) {
   console.log(`  works ${dryRun ? 'to add' : 'added'}: ${worksAdded}`)
-  console.log(
-    `  no posts (personal, private or renamed account): ${personal.length}` +
-      `${personal.length ? `  (${personal.join(', ')})` : ''}`,
-  )
+  if (fromInscrape) {
+    const byStatus = new Map<string, typeof personal>()
+    for (const p of personal) byStatus.set(p.status ?? 'pending', [...(byStatus.get(p.status ?? 'pending') ?? []), p])
+    console.log(`  no posts in the file: ${personal.length}`)
+    for (const [status, list] of byStatus) {
+      console.log(`    ${status}: ${list.length}  (${list.map((p) => p.handle).join(', ')})`)
+    }
+  } else {
+    console.log(
+      `  no posts (personal, private or renamed account): ${personal.length}` +
+        `${personal.length ? `  (${personal.map((p) => p.handle).join(', ')})` : ''}`,
+    )
+  }
 }
 console.log(
   `  skipped:  ${skippedExisting.length + parsed.duplicates.length}` +

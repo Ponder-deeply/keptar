@@ -10,6 +10,8 @@ paths:
   `tag:artists` calls the Claude API (costs money, even with `--dry-run`). Run them
   only when the user asks. While developing, use `import:instagram --dry-run` or
   `--handles-only`, and `tag:artists --dry-run --limit 1` (or `--handle <h>`).
+  Given an inscrape export (`"source": "inscrape"`) it makes no API calls and
+  reads posts from the file; the fixture is `scripts/fixtures/inscrape.sample.json`.
 - Tests mock the network (`tests/int/instagram-graph.int.spec.ts`,
   `import.int.spec.ts`). Add a mocked test for new API behaviour; don't hit the
   real APIs in tests.
