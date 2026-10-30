@@ -58,6 +58,3 @@ node_modules/
 # Claude Code agent worktrees
 /.claude/worktrees/
 /.claude/settings.local.json
-
-# instaloader downloads (docs/INSTAGRAM.md)
-/ig-export/
